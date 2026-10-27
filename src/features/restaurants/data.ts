@@ -1,11 +1,12 @@
 import type { Restaurant, RestaurantReview } from '../../types'
 import { creditFor } from './photoCredits'
+import { publicAsset } from '../../lib/publicAsset'
 
 function photo(src: string, alt: string, file: string) {
   return { src, alt, credit: creditFor(file) }
 }
 
-export const restaurants: Restaurant[] = [
+const restaurantData: Restaurant[] = [
   {
     id: 'la-mar',
     name: 'La Mar Cebichería',
@@ -463,6 +464,16 @@ export const restaurants: Restaurant[] = [
     reservationPolicy: 'Mesas por orden de llegada',
   },
 ]
+
+export const restaurants = restaurantData.map((restaurant) => ({
+  ...restaurant,
+  image: publicAsset(restaurant.image),
+  photos: restaurant.photos?.map((photo) => ({ ...photo, src: publicAsset(photo.src) })),
+  menuHighlights: restaurant.menuHighlights.map((dish) => ({
+    ...dish,
+    image: dish.image ? publicAsset(dish.image) : undefined,
+  })),
+}))
 
 export const cities = ['Lima', 'Cusco', 'Arequipa', 'Trujillo']
 

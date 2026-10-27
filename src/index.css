@@ -130,7 +130,7 @@ img { max-width: 100%; }
 .demo-note { margin-top: 21px; display: flex; align-items: center; gap: 7px; color: #817b73; font-size: 9px; }
 .demo-note svg { color: var(--gold); }
 .editorial-band { min-height: 300px; color: white; background: #38352f; position: relative; overflow: hidden; }
-.editorial-band:before { content: ""; position: absolute; inset: 0 0 0 48%; background: linear-gradient(90deg, #38352f, rgba(56,53,47,.35) 55%), url("/images/editorial.webp") center 55%/cover; opacity: .78; }
+.editorial-visual { position: absolute; inset: 0 0 0 48%; background-position: center 55%; background-size: cover; opacity: .78; }
 .editorial-inner { position: relative; padding-top: 45px; padding-bottom: 45px; }
 .editorial-inner h2 { font: 500 43px/.95 var(--serif); margin: 13px 0; }
 .editorial-inner h2 em { color: #dbad8e; }
@@ -142,9 +142,6 @@ img { max-width: 100%; }
 .discover-tile>* { position: relative; }
 .discover-tile>span { font-size: 8px; letter-spacing: 1px; }
 .discover-tile strong { font: 500 25px/1 var(--serif); }
-.discover-tile.seafood { background-image: url("/images/discover-seafood.webp"); }
-.discover-tile.criollo { background-image: url("/images/discover-criollo.webp"); }
-.discover-tile.all-dining { background-image: url("/images/discover-all.webp"); }
 
 .site-footer { background: #f1efeb; border-top: 1px solid var(--line); padding: 38px max(32px, calc((100% - 1160px)/2)) 16px; }
 .footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.1fr; gap: 45px; padding-bottom: 33px; }

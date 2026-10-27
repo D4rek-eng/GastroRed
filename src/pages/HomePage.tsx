@@ -6,6 +6,7 @@ import { DEFAULT_NEARBY_RADIUS, searchNearby } from '../features/restaurants/nea
 import { formatDistance } from '../features/location/location'
 import { useUserLocation } from '../features/location/useUserLocation'
 import { PhotoPlaceholder } from '../components/PhotoPlaceholder'
+import { publicAsset } from '../lib/publicAsset'
 
 export function HomePage() {
   const userLocation = useUserLocation()
@@ -26,7 +27,7 @@ export function HomePage() {
   return (
     <>
       <section className="hero">
-        <div className="hero-image" role="img" aria-label="Interior de un restaurante con vistas al mar en Lima" />
+        <div className="hero-image" style={{ backgroundImage: `url("${publicAsset('/images/hero.webp')}")` }} role="img" aria-label="Interior de un restaurante con vistas al mar en Lima" />
         <div className="hero-shade" />
         <div className="hero-copy">
           <span className="eyebrow light"><Sparkles size={13} /> TU PRÓXIMA MESA FAVORITA</span>
@@ -157,6 +158,7 @@ export function HomePage() {
       )}
 
       <section className="editorial-band">
+        <div className="editorial-visual" style={{ backgroundImage: `linear-gradient(90deg, #38352f, rgba(56,53,47,.35) 55%), url("${publicAsset('/images/editorial.webp')}")` }} aria-hidden="true" />
         <div className="page-container editorial-inner">
           <span className="eyebrow light">UNA ELECCIÓN MÁS FÁCIL</span>
           <h2>¿Entre dos lugares?<br /><em>Que decida la mesa.</em></h2>
@@ -168,9 +170,9 @@ export function HomePage() {
 
       <section className="section page-container discover-strip">
         <div><span className="eyebrow"><span className="eyebrow-dot" /> TU PLAN, TU ELECCIÓN</span><h2>Elige por <em>antojo.</em></h2></div>
-        <Link to="/restaurantes?cuisine=Marina" className="discover-tile seafood"><span>01 / SABOR A MAR</span><strong>La costa<br />en la mesa</strong><ArrowDown size={17} /></Link>
-        <Link to="/restaurantes?cuisine=Criolla" className="discover-tile criollo"><span>02 / TRADICIÓN PERUANA</span><strong>Recetas con<br />historia</strong><ArrowDown size={17} /></Link>
-        <Link to="/restaurantes" className="discover-tile all-dining"><span>03 / DESCUBRE SABORES</span><strong>Tu siguiente<br />gran plan</strong><ArrowDown size={17} /></Link>
+        <Link to="/restaurantes?cuisine=Marina" className="discover-tile seafood" style={{ backgroundImage: `url("${publicAsset('/images/discover-seafood.webp')}")` }}><span>01 / SABOR A MAR</span><strong>La costa<br />en la mesa</strong><ArrowDown size={17} /></Link>
+        <Link to="/restaurantes?cuisine=Criolla" className="discover-tile criollo" style={{ backgroundImage: `url("${publicAsset('/images/discover-criollo.webp')}")` }}><span>02 / TRADICIÓN PERUANA</span><strong>Recetas con<br />historia</strong><ArrowDown size={17} /></Link>
+        <Link to="/restaurantes" className="discover-tile all-dining" style={{ backgroundImage: `url("${publicAsset('/images/discover-all.webp')}")` }}><span>03 / DESCUBRE SABORES</span><strong>Tu siguiente<br />gran plan</strong><ArrowDown size={17} /></Link>
       </section>
     </>
   )
