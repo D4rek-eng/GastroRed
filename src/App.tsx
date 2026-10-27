@@ -28,7 +28,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <LocationProvider>
         <OwnerAuthProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Routes>
               <Route element={<SiteLayout />}>
                 <Route index element={<HomePage />} />
