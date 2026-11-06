@@ -33,7 +33,7 @@ El tema se ajusta a la hora local del dispositivo: modo claro de 06:00 a 17:59 y
 - Inicio editorial de la app, navegación responsive, búsqueda y rutas principales.
 - Búsqueda por restaurante, distrito, cocina y plato; filtro por cocina, precio y valoración; orden por relevancia, valoración, precio y distancia.
 - Descubrimiento de restaurantes reales a 200 m, 500 m o 1 km con OpenStreetMap; radio ampliable y fichas sin datos inventados.
-- Los radios Free (200 m) y Pro (500 m–1 km) de la landing son informativos: no hay suscripción, cobro ni restricción de radio por plan implementados.
+- Los radios Free (200 m) y Pro (500 m–1 km, S/ 100 al mes) de la landing son informativos: no hay suscripción, cobro ni restricción de radio por plan implementados.
 - Guía curada siempre disponible con carta, precios por plato, reseñas y fotografías reales; cada imagen tiene su crédito y los locales sin foto propia muestran un espacio neutro, nunca una imagen referencial.
 - Ficha de restaurante con menú y reseñas de ejemplo, comentarios de usuarios con valoración de 1 a 5 estrellas y filtro por puntuación, mapa de Google centrado en el restaurante, distancia desde la ubicación del usuario con permiso, guardar favoritos en este dispositivo y flujo de solicitud de reserva con validación Zod/React Hook Form.
 - Comparador de hasta cuatro restaurantes, criterios prioritarios, puntuación ponderada explicada, normalizada y probada, con contraste de tema oscuro.

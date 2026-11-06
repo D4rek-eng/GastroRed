@@ -28,41 +28,111 @@ const steps = [
   },
 ]
 
+const phoneSlides = [
+  {
+    id: 'punto-azul',
+    name: 'Punto Azul',
+    cuisine: 'Marina',
+    neighborhood: 'Miraflores',
+    image: '/images/restaurants/punto-azul/cover.webp',
+    alt: 'Fotografía de Punto Azul',
+  },
+  {
+    id: 'la-mar',
+    name: 'La Mar Cebichería',
+    cuisine: 'Marina',
+    neighborhood: 'Miraflores',
+    image: '/images/restaurants/la-mar/cover.webp',
+    alt: 'Fotografía de La Mar Cebichería',
+  },
+  {
+    id: 'isolina',
+    name: 'Isolina',
+    cuisine: 'Criolla',
+    neighborhood: 'Barranco',
+    image: '/images/restaurants/isolina/cover.webp',
+    alt: 'Fotografía de Isolina',
+  },
+]
+
 export function MarketingLandingPage() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [navHidden, setNavHidden] = useState(false)
+  const [activePhoneSlide, setActivePhoneSlide] = useState(0)
   const pageRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     const page = pageRef.current
-    if (!page || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!page) return
 
-    const layers = [...page.querySelectorAll<HTMLElement>('[data-parallax]')].map((element) => ({
+    const allowMotion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const layers = allowMotion ? [...page.querySelectorAll<HTMLElement>('[data-parallax]')].map((element) => ({
       element,
       speed: Number(element.dataset.parallax),
-      documentTop: element.getBoundingClientRect().top + window.scrollY,
-      height: element.offsetHeight,
-    }))
+    })) : []
+    let previousScrollY = window.scrollY
     let frame = 0
 
-    function updateLayers() {
-      window.cancelAnimationFrame(frame)
+    function updateNavigation() {
+      const scrollY = window.scrollY
+      if (scrollY < 96) {
+        setNavHidden(false)
+      } else if (scrollY > previousScrollY + 1) {
+        setNavHidden(true)
+      } else if (scrollY < previousScrollY - 1) {
+        setNavHidden(false)
+      }
+      previousScrollY = scrollY
+    }
+
+    function updateParallax() {
+      if (!allowMotion || frame) return
       frame = window.requestAnimationFrame(() => {
+        frame = 0
         for (const layer of layers) {
-          const viewportTop = layer.documentTop - window.scrollY
-          const offset = (window.innerHeight / 2 - (viewportTop + layer.height / 2)) * layer.speed
+          const bounds = layer.element.getBoundingClientRect()
+          const offset = (window.innerHeight / 2 - (bounds.top + bounds.height / 2)) * layer.speed
           layer.element.style.setProperty('--parallax-y', `${Math.round(offset)}px`)
         }
       })
     }
 
-    window.addEventListener('scroll', updateLayers, { passive: true })
-    window.addEventListener('resize', updateLayers)
-    updateLayers()
+    const revealTargets = [...page.querySelectorAll<HTMLElement>('.landing-step, .landing-plans-visual, .landing-plan-option')]
+    let observer: IntersectionObserver | null = null
+    if (allowMotion && 'IntersectionObserver' in window) {
+      page.classList.add('landing-motion-ready')
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          entry.target.classList.add('is-visible')
+          observer?.unobserve(entry.target)
+        }
+      }, { threshold: 0.16 })
+      revealTargets.forEach((element) => observer?.observe(element))
+    }
+
+    const handleScroll = () => {
+      updateNavigation()
+      updateParallax()
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('resize', updateParallax)
+    handleScroll()
     return () => {
       window.cancelAnimationFrame(frame)
-      window.removeEventListener('scroll', updateLayers)
-      window.removeEventListener('resize', updateLayers)
+      observer?.disconnect()
+      page.classList.remove('landing-motion-ready')
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', updateParallax)
     }
+  }, [])
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const interval = window.setInterval(() => {
+      setActivePhoneSlide((current) => (current + 1) % phoneSlides.length)
+    }, 4200)
+    return () => window.clearInterval(interval)
   }, [])
 
   function closeMenu() {
@@ -71,7 +141,7 @@ export function MarketingLandingPage() {
 
   return (
     <main className="marketing-landing" ref={pageRef}>
-      <header className="landing-header">
+      <header className={`landing-header${navHidden ? ' is-hidden' : ''}${menuOpen ? ' menu-is-open' : ''}`}>
         <Link className="landing-brand" to="/inicio" aria-label="GastroRed, entrar a la guía">
           <span className="landing-brand-mark"><Utensils size={18} /></span>
           <span>GastroRed<small>BUENOS MOMENTOS, BUENA MESA</small></span>
@@ -122,24 +192,38 @@ export function MarketingLandingPage() {
             <div className="landing-place-chip chip-two" data-parallax="0.08"><span className="chip-dot" /> Explora tu zona</div>
           </div>
 
-          <article className="landing-phone" data-parallax="-0.035" aria-label="Ejemplo de ficha de restaurante">
-            <div className="landing-phone-top"><span>9:41</span><span className="phone-camera" /><span>●●●</span></div>
-            <div className="landing-phone-brand"><span className="landing-brand-mark"><Utensils size={12} /></span> GastroRed <span>•••</span></div>
-            <img src={publicAsset('/images/restaurants/punto-azul/cover.webp')} alt="Fotografía de un plato de Punto Azul" />
-            <div className="landing-phone-content">
-              <span className="phone-kicker">FICHA DE EJEMPLO</span>
-              <strong>Punto Azul</strong>
-              <span>Marina · Miraflores</span>
-              <div className="phone-info"><MapPin size={12} /> Consulta locales en el mapa</div>
-              <Link to="/restaurantes" className="phone-link">Ver restaurantes <ArrowRight size={12} /></Link>
-            </div>
-          </article>
+          <div className="landing-phone-float" data-parallax="-0.035">
+            <article className="landing-phone" aria-label="Ejemplo ilustrativo de ficha de restaurante">
+              <div className="landing-phone-top"><span>9:41</span><span className="phone-camera" /><span>●●●</span></div>
+              <div className="landing-phone-brand"><span className="landing-brand-mark"><Utensils size={12} /></span> GastroRed <span>•••</span></div>
+              <img key={phoneSlides[activePhoneSlide].image} src={publicAsset(phoneSlides[activePhoneSlide].image)} alt={phoneSlides[activePhoneSlide].alt} />
+              <div className="landing-phone-content" key={phoneSlides[activePhoneSlide].id}>
+                <span className="phone-kicker">FICHA DE EJEMPLO</span>
+                <strong>{phoneSlides[activePhoneSlide].name}</strong>
+                <span>{phoneSlides[activePhoneSlide].cuisine} · {phoneSlides[activePhoneSlide].neighborhood}</span>
+                <div className="phone-info"><MapPin size={12} /> Consulta locales en el mapa</div>
+                <Link to={`/restaurantes/${phoneSlides[activePhoneSlide].id}`} className="phone-link">Ver restaurante <ArrowRight size={12} /></Link>
+              </div>
+              <div className="landing-phone-dots" role="group" aria-label="Restaurantes de ejemplo">
+                {phoneSlides.map((slide, index) => (
+                  <button
+                    key={slide.id}
+                    className={index === activePhoneSlide ? 'is-active' : ''}
+                    type="button"
+                    aria-label={`Mostrar ${slide.name}`}
+                    aria-pressed={index === activePhoneSlide}
+                    onClick={() => setActivePhoneSlide(index)}
+                  />
+                ))}
+              </div>
+            </article>
+          </div>
           <span className="landing-hero-caption">Descubrimiento a tu ritmo, desde el mapa hasta la mesa.</span>
         </div>
 
         <div className="landing-plan-strip">
           <span><strong>Free</strong> · descubre a 200 m</span>
-          <span><strong>Pro</strong> · explora hasta 1 km <i>Próximamente</i></span>
+          <span><strong>Pro</strong> · S/ 100 al mes <i>Próximamente</i></span>
           <span>La cobertura depende de los datos disponibles en el mapa.</span>
         </div>
       </section>
@@ -183,19 +267,19 @@ export function MarketingLandingPage() {
         </div>
         <div className="landing-plan-options">
           <article className="landing-plan-option">
-            <div><span className="plan-name">FREE</span><span className="plan-status">Disponible</span></div>
-            <strong>200 <small>m a la redonda</small></strong>
-            <p>Una forma sencilla de empezar a descubrir restaurantes cerca de ti.</p>
+            <div className="landing-plan-card-heading"><span className="plan-name">GastroRed Free</span><span className="plan-status">Gratis</span></div>
+            <strong><span>Sin costo</span></strong>
+            <p>Descubrimiento de restaurantes hasta 200 m a la redonda.</p>
             <Link to="/restaurantes">Ver restaurantes <ArrowRight size={14} /></Link>
           </article>
           <article className="landing-plan-option pro-option">
-            <div><span className="plan-name">PRO</span><span className="plan-status">Próximamente</span></div>
-            <strong>Hasta 1 <small>km a la redonda</small></strong>
-            <p>Más alcance para explorar desde 500 m hasta 1 km. Sin precio publicado todavía.</p>
-            <span className="plan-coming-soon">Estamos preparando Pro</span>
+            <div className="landing-plan-card-heading"><span className="plan-name">GastroRed Pro</span><span className="plan-status">Próximamente</span></div>
+            <strong>S/ 100 <small>al mes</small></strong>
+            <p>Amplía tu búsqueda de 500 m hasta 1 km a la redonda.</p>
+            <span className="plan-coming-soon">Suscripción y límites aún no activos</span>
           </article>
         </div>
-        <p className="landing-plan-disclaimer">La disponibilidad de locales depende de los datos de OpenStreetMap. Los precios, reseñas y horarios demo se identifican como ilustrativos.</p>
+        <p className="landing-plan-disclaimer">Planes informativos: todavía no hay suscripciones, cobros ni límites por plan activos. La disponibilidad de restaurantes depende de los datos de OpenStreetMap.</p>
       </section>
 
       <section className="landing-closing">
