@@ -31,9 +31,9 @@
 }
 
 .landing-header.is-collapsed {
-  width: 152px;
-  height: 56px;
-  padding: 0 10px;
+  width: 112px;
+  height: 44px;
+  padding: 0 8px;
   border-radius: 999px;
 }
 
@@ -49,6 +49,18 @@
   width: 122px;
   max-height: 57px;
   object-fit: contain;
+  transition:
+    width .42s cubic-bezier(.22, 1, .36, 1),
+    max-height .42s cubic-bezier(.22, 1, .36, 1);
+}
+
+.landing-header.is-collapsed .landing-brand {
+  max-width: 92px;
+}
+
+.landing-header.is-collapsed .landing-brand img {
+  width: 92px;
+  max-height: 44px;
 }
 
 .landing-nav {
@@ -119,6 +131,7 @@
 
 .landing-nav-cta {
   min-height: 40px;
+  border-radius: 999px;
   background: var(--rust);
   color: #fff;
 }
@@ -1074,8 +1087,8 @@
   }
 
   .landing-header.is-collapsed {
-    width: 142px;
-    height: 50px;
+    width: 112px;
+    height: 44px;
     padding: 0 8px;
   }
 
