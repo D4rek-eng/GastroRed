@@ -48,7 +48,7 @@ export function ComparePage() {
 
   return (
     <div className="page-container compare-page">
-      <div className="breadcrumb"><Link to="/">Inicio</Link><span>/</span><span>Comparador</span></div>
+      <div className="breadcrumb"><Link to="/inicio">Inicio</Link><span>/</span><span>Comparador</span></div>
       <div className="compare-intro">
         <div><span className="eyebrow"><span className="eyebrow-dot" /> UNA DECISIÓN CON BUEN SABOR</span><h1>Compara cara <em>a cara.</em></h1><p>Encuentra la mesa que va mejor con tu plan, sin perderte ningún detalle.</p></div>
         <label className="compare-date"><CalendarIcon /><span>Plan demo · no consulta disponibilidad<select value={plan} onChange={(event) => setPlan(event.target.value)}><option>Viernes · 2 personas</option><option>Sábado · 2 personas</option><option>Domingo · 4 personas</option></select></span></label>

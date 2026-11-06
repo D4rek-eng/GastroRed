@@ -35,7 +35,7 @@ export function RestaurantsPage() {
 
   const nearbyQuery = useQuery({
     queryKey: ['nearby-restaurants', location?.latitude, location?.longitude, radius],
-    queryFn: ({ signal }) => searchNearby(location!, radius, { expand: radius === DEFAULT_NEARBY_RADIUS, signal }),
+    queryFn: ({ signal }) => searchNearby(location!, radius, { signal }),
     enabled: Boolean(location),
     staleTime: 5 * 60_000,
   })
@@ -103,7 +103,7 @@ export function RestaurantsPage() {
 
   return (
     <div className="page-container listing-page">
-      <div className="breadcrumb"><Link to="/">Inicio</Link><span>/</span><span>Restaurantes</span></div>
+      <div className="breadcrumb"><Link to="/inicio">Inicio</Link><span>/</span><span>Restaurantes</span></div>
       <div className="listing-heading">
         <div>
           <span className="eyebrow"><span className="eyebrow-dot" /> {location ? `A ${radiusUsed} M DE ${placeLabel.toLocaleUpperCase('es')}` : 'UNA GUÍA COMPLETA PARA ELEGIR'}</span>

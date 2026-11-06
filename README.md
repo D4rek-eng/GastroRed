@@ -29,9 +29,11 @@ El tema se ajusta a la hora local del dispositivo: modo claro de 06:00 a 17:59 y
 
 ## Funcionalidades implementadas
 
-- Inicio editorial, navegación responsive, búsqueda y rutas principales.
+- Landing informativa en `/` con parallax, planes Free/Pro y acceso al inicio de la app en `/inicio`.
+- Inicio editorial de la app, navegación responsive, búsqueda y rutas principales.
 - Búsqueda por restaurante, distrito, cocina y plato; filtro por cocina, precio y valoración; orden por relevancia, valoración, precio y distancia.
 - Descubrimiento de restaurantes reales a 200 m, 500 m o 1 km con OpenStreetMap; radio ampliable y fichas sin datos inventados.
+- Los radios Free (200 m) y Pro (500 m–1 km) de la landing son informativos: no hay suscripción, cobro ni restricción de radio por plan implementados.
 - Guía curada siempre disponible con carta, precios por plato, reseñas y fotografías reales; cada imagen tiene su crédito y los locales sin foto propia muestran un espacio neutro, nunca una imagen referencial.
 - Ficha de restaurante con menú y reseñas de ejemplo, comentarios de usuarios con valoración de 1 a 5 estrellas y filtro por puntuación, mapa de Google centrado en el restaurante, distancia desde la ubicación del usuario con permiso, guardar favoritos en este dispositivo y flujo de solicitud de reserva con validación Zod/React Hook Form.
 - Comparador de hasta cuatro restaurantes, criterios prioritarios, puntuación ponderada explicada, normalizada y probada, con contraste de tema oscuro.
@@ -42,7 +44,7 @@ El tema se ajusta a la hora local del dispositivo: modo claro de 06:00 a 17:59 y
 
 ## Restaurantes cercanos y ubicación
 
-Al aceptar el permiso de ubicación, la guía curada sigue visible y la portada y el listado suman una sección de descubrimiento con los locales reales registrados en OpenStreetMap a 200 metros a la redonda. La búsqueda usa el endpoint de mapa de OpenStreetMap para radios de 200 y 500 metros y Overpass para radios mayores; los resultados se guardan en el navegador durante unas horas para no repetir consultas. Si no hay locales a 200 metros, la portada amplía automáticamente a 500 m y 1 km e indica el radio utilizado. En el listado puedes elegir 200 m, 500 m o 1 km. Un aviso propio invita a activar la ubicación la primera vez de cada sesión, además del botón de la cabecera.
+Al aceptar el permiso de ubicación, la guía curada sigue visible y la portada de la app y el listado suman una sección de descubrimiento con los locales reales registrados en OpenStreetMap alrededor de la ubicación. La búsqueda usa el endpoint de mapa de OpenStreetMap para radios de 200 y 500 metros y Overpass para radios mayores; los resultados se guardan en el navegador durante unas horas para no repetir consultas. La portada de la app busca a 200 m; en el listado puedes elegir 200 m, 500 m o 1 km. Un aviso propio invita a activar la ubicación la primera vez de cada sesión, además del botón de la cabecera.
 
 La ubicación se obtiene con `enableHighAccuracy` y se muestra con su precisión en metros. El distrito y la región se resuelven con BigDataCloud y, si falla, con Nominatim; por eso un punto en Sullana se muestra como «Sullana, Piura, Perú» y no como Lima. La interfaz indica las coordenadas y advierte cuando el navegador entrega una ubicación aproximada. Las coordenadas no se guardan en ningún servidor.
 

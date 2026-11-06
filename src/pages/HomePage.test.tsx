@@ -9,8 +9,9 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 describe('home page', () => {
   it('introduces the service and links to restaurant discovery', () => {
-    render(<QueryClientProvider client={queryClient}><LocationProvider><MemoryRouter><HomePage /></MemoryRouter></LocationProvider></QueryClientProvider>)
+    const { container } = render(<QueryClientProvider client={queryClient}><LocationProvider><MemoryRouter><HomePage /></MemoryRouter></LocationProvider></QueryClientProvider>)
     expect(screen.getByRole('heading', { name: /hay un lugar/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /encuentra tu mesa/i })).toHaveAttribute('href', '/restaurantes')
+    expect(container.querySelector('.search-form')).toHaveAttribute('action', `${import.meta.env.BASE_URL}restaurantes`)
   })
 })

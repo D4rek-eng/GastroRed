@@ -13,7 +13,7 @@ export function HomePage() {
   const location = userLocation.location
   const nearbyQuery = useQuery({
     queryKey: ['nearby-home', location?.latitude, location?.longitude],
-    queryFn: ({ signal }) => searchNearby(location!, DEFAULT_NEARBY_RADIUS, { expand: true, signal }),
+    queryFn: ({ signal }) => searchNearby(location!, DEFAULT_NEARBY_RADIUS, { signal }),
     enabled: Boolean(location),
     staleTime: 5 * 60_000,
   })
@@ -40,7 +40,7 @@ export function HomePage() {
       </section>
 
       <section className="search-panel page-container" aria-label="Buscar restaurantes">
-        <form className="search-form" action="/restaurantes">
+        <form className="search-form" action={`${import.meta.env.BASE_URL}restaurantes`}>
           <label className="search-field"><MapPin size={18} /><span><small>¿DÓNDE?</small><input aria-label="Distrito o ciudad" name="place" placeholder="Distrito o ciudad" defaultValue={whereLabel} key={whereLabel} /></span></label>
           <label className="search-field"><Utensils size={18} /><span><small>¿QUÉ SE TE ANTOJA?</small><input aria-label="Cocina o restaurante" name="q" placeholder="Cocina, plato o restaurante" /></span></label>
           <button className="button button-primary search-submit" type="submit"><Search size={17} /> Buscar restaurantes</button>

@@ -82,7 +82,7 @@ export function OwnerPortalPage() {
 
   return (
     <div className="page-container owner-page">
-      <div className="breadcrumb"><Link to="/">Inicio</Link><span>/</span><span>Acceso restaurantes</span></div>
+      <div className="breadcrumb"><Link to="/inicio">Inicio</Link><span>/</span><span>Acceso restaurantes</span></div>
       <section className="owner-intro">
         <span className="owner-icon"><Store size={21} /></span>
         <span className="eyebrow">PORTAL PARA RESTAURANTES</span>

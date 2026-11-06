@@ -5,7 +5,7 @@ import { photoCredits } from '../features/restaurants/photoCredits'
 export function PhotoCreditsPage() {
   return (
     <div className="page-container credits-page">
-      <div className="breadcrumb"><Link to="/"><ArrowLeft size={14} /> Inicio</Link><span>/</span><span>Créditos de las fotografías</span></div>
+      <div className="breadcrumb"><Link to="/inicio"><ArrowLeft size={14} /> Inicio</Link><span>/</span><span>Créditos de las fotografías</span></div>
       <div className="credits-intro">
         <span className="eyebrow"><Camera size={13} /> FOTOGRAFÍA REAL, CON ATRIBUCIÓN</span>
         <h1>Créditos de las <em>fotografías.</em></h1>

@@ -7,6 +7,7 @@ import { LocationProvider } from './features/location/LocationProvider'
 import { ComparePage } from './pages/ComparePage'
 import { HomePage } from './pages/HomePage'
 import { InfoPage } from './pages/InfoPage'
+import { MarketingLandingPage } from './pages/MarketingLandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OwnerLoginPage } from './pages/OwnerLoginPage'
 import { OwnerPortalPage } from './pages/OwnerPortalPage'
@@ -30,8 +31,9 @@ export default function App() {
         <OwnerAuthProvider>
           <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Routes>
+              <Route path="/" element={<MarketingLandingPage />} />
               <Route element={<SiteLayout />}>
-                <Route index element={<HomePage />} />
+                <Route path="inicio" element={<HomePage />} />
                 <Route path="restaurantes" element={<RestaurantsPage />} />
                 <Route path="restaurantes/:id" element={<RestaurantDetailPage />} />
                 <Route path="comparador" element={<ComparePage />} />

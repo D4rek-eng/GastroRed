@@ -46,7 +46,7 @@ export function SiteLayout() {
     <>
       <header className="site-header">
         <div className="header-inner">
-          <Link className="brand" to="/" aria-label="GastroRed, inicio" onClick={() => setMenuOpen(false)}>
+          <Link className="brand" to="/inicio" aria-label="GastroRed, inicio" onClick={() => setMenuOpen(false)}>
             <span className="brand-mark"><Utensils size={17} /></span>
             <span>GastroRed<small>BUENOS MOMENTOS, BUENA MESA</small></span>
           </Link>
@@ -85,7 +85,7 @@ export function SiteLayout() {
       <LocationPermissionPrompt />
       <footer className="site-footer">
         <div className="footer-grid">
-          <div><Link className="brand footer-brand" to="/"><span className="brand-mark"><Utensils size={16} /></span><span>GastroRed</span></Link><p>Descubre restaurantes que se sienten como tu lugar favorito.</p></div>
+          <div><Link className="brand footer-brand" to="/inicio"><span className="brand-mark"><Utensils size={16} /></span><span>GastroRed</span></Link><p>Descubre restaurantes que se sienten como tu lugar favorito.</p></div>
           <div><strong>Descubre</strong><Link to="/restaurantes">Restaurantes</Link><Link to="/comparador">Comparador</Link><Link to="/mapa">Explorar el mapa</Link></div>
           <div><strong>Tu cuenta</strong><Link to="/reservas">Mis reservas</Link><Link to="/favoritos">Mis favoritos</Link><Link to="/perfil">Mi perfil</Link></div>
           <div className="footer-note"><Heart size={16} /> Hecho para disfrutar mejor {userLocation.location?.region ?? 'el Perú'}.</div>
