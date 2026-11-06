@@ -30,6 +30,8 @@ describe('application navigation', () => {
     )
 
     const navigation = screen.getByRole('navigation', { name: 'Navegación principal' })
+    expect(screen.getByRole('link', { name: 'GastroRed, inicio' }).querySelector('.brand-mark img')).toHaveAttribute('src', expect.stringMatching(/\/images\/gastrored-symbol\.png$/))
+    expect(screen.getByRole('link', { name: 'GastroRed' }).querySelector('.brand-mark img')).toHaveAttribute('src', expect.stringMatching(/\/images\/gastrored-symbol\.png$/))
     expect(navigation.querySelector('a[href="/login"]')).toHaveTextContent('Login')
     expect(navigation.querySelector('a[href="/propietario/login"]')).not.toBeInTheDocument()
 

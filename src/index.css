@@ -37,6 +37,7 @@ img { max-width: 100%; }
 .brand i { font-weight: 400; color: var(--rust); }
 .brand small { display: block; margin-top: 4px; font: 600 7px/1 var(--sans); letter-spacing: 1.25px; color: #8c867f; }
 .brand-mark { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; background: #f5ece6; color: var(--rust); }
+.brand-mark img { display: block; width: 82%; height: 78%; object-fit: contain; }
 .city-picker { display: flex; align-items: center; gap: 7px; border: 0; border-left: 1px solid var(--line); padding: 0 0 0 25px; background: transparent; color: #514c46; font-size: 12px; white-space: nowrap; cursor: pointer; }
 .city-picker svg { color: var(--rust); }
 .city-picker:disabled { cursor: wait; opacity: .7; }
