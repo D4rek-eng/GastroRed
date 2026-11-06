@@ -79,7 +79,7 @@ export function LoginPage() {
       const verifiedSession = await verifyEmail(verificationEmail, verificationCode.trim())
       setMessage('Correo verificado. Tu cuenta ya está lista.')
       if (verifiedSession.planStatus === 'active') {
-        navigate(verifiedSession.role === 'restaurant' ? '/propietario' : '/perfil', { replace: true })
+        navigate(returnTo ?? (verifiedSession.role === 'restaurant' ? '/propietario' : '/perfil'), { replace: true })
       }
     } catch (verifyError) {
       setError(verifyError instanceof Error ? verifyError.message : 'No se pudo verificar el correo.')

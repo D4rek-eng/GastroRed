@@ -34,11 +34,16 @@ export function AccountPage() {
         <p>{session.email}</p>
         <div className="account-plan-status">
           <strong>Plan {session.plan === 'pro' ? 'Pro' : 'Free'}</strong>
-          <span>{session.planStatus === 'active' ? 'Cuenta activa' : 'Pago pendiente de confirmación'}</span>
+          <span>{session.planStatus === 'active' ? session.plan === 'pro' ? 'Activo · hasta 1 km de búsqueda' : 'Activo · búsqueda a 200 m' : 'Pago pendiente de confirmación'}</span>
         </div>
+        {session.plan !== 'pro' && <div className="account-pro-benefits">
+          <strong>Con Pro por S/ 100 al mes</strong>
+          <p>Amplía el mapa a 500 m o 1 km. Tus favoritos se mantienen asociados a tu cuenta en este dispositivo.</p>
+        </div>}
         {(session.plan !== 'pro' || session.planStatus !== 'active') && <button className="button button-primary account-checkout" type="button" onClick={() => void upgrade()} disabled={isSubmitting}>
           {isSubmitting ? 'Conectando con Mercado Pago…' : session.plan === 'pro' ? 'Completar pago · S/ 100 al mes' : 'Ampliar búsqueda · S/ 100 al mes'} <ArrowRight size={15} />
         </button>}
+        <p className="account-billing-note">El cambio de plan se activa cuando Mercado Pago confirma el pago. La suscripción es mensual.</p>
         {error && <p className="owner-message error" role="alert">{error}</p>}
         <Link className="account-activity-link" to="/reservas"><BadgeCheck size={15} /> Consultar mis reservas <ArrowRight size={14} /></Link>
         <button className="account-signout" type="button" onClick={() => void signOut()}><LogOut size={14} /> Cerrar sesión</button>

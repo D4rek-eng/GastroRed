@@ -1,13 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock3, ExternalLink, Heart, MapPin, Minus, Plus, Star, Utensils, Users } from 'lucide-react'
-import { useForm } from 'react-hook-form'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { PhotoPlaceholder } from '../components/PhotoPlaceholder'
 import { restaurantService } from '../features/restaurants/service'
 import { useOwnerAuth } from '../features/auth/useOwnerAuth'
-import { reservationContactSchema } from '../features/reservations/validation'
 import { distanceBetweenLocations, formatDistance } from '../features/location/location'
 import { useUserLocation } from '../features/location/useUserLocation'
 import type { Reservation, ReservationInput, Restaurant, RestaurantReview, RestaurantReviewInput } from '../types'
@@ -20,16 +17,15 @@ export function RestaurantDetailPage() {
   const { id = '' } = useParams()
   const location = useLocation()
   const queryClient = useQueryClient()
-  const { session } = useOwnerAuth()
+  const { session, isLoading: isSessionLoading } = useOwnerAuth()
   const { data: restaurant, isLoading, isError } = useQuery({ queryKey: ['restaurant', id], queryFn: ({ signal }) => restaurantService.getById(id, signal) })
   const { data: reviews = [], isLoading: reviewsLoading, isError: reviewsError, refetch: refetchReviews } = useQuery({
     queryKey: ['restaurant-reviews', id],
     queryFn: ({ signal }) => restaurantService.listReviews(id, signal),
   })
   const userLocation = useUserLocation()
-  const [savedFavorites, setSavedFavorites] = useState<string[]>(() => JSON.parse(localStorage.getItem('mesa-favorites') ?? '[]') as string[])
+  const [favoriteState, setFavoriteState] = useState<{ accountId: string; ids: string[] } | null>(null)
   const [selectedTime, setSelectedTime] = useState('')
-  const [reviewAuthor, setReviewAuthor] = useState('')
   const [reviewComment, setReviewComment] = useState('')
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewFilter, setReviewFilter] = useState(0)
@@ -37,10 +33,12 @@ export function RestaurantDetailPage() {
   const [guests, setGuests] = useState(2)
   const [date, setDate] = useState(todayLocal)
   const [message, setMessage] = useState('')
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<{ name: string; email: string }>({
-    resolver: zodResolver(reservationContactSchema),
-    defaultValues: { name: session?.name ?? '', email: session?.email ?? '' },
-  })
+  const favoriteAccountId = session?.id ?? session?.email ?? ''
+  const savedFavorites = session?.role === 'customer'
+    ? favoriteState?.accountId === favoriteAccountId
+      ? favoriteState.ids
+      : JSON.parse(localStorage.getItem(`mesa-favorites-${favoriteAccountId}`) ?? localStorage.getItem('mesa-favorites') ?? '[]') as string[]
+    : []
   const isFavorite = restaurant ? savedFavorites.includes(restaurant.id) : false
   const isOsm = restaurant?.source === 'osm'
   const distanceKm = restaurant && userLocation.location
@@ -52,12 +50,6 @@ export function RestaurantDetailPage() {
   const directionsUrl = restaurant
     ? `https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}${userLocation.location ? `&origin=${userLocation.location.latitude},${userLocation.location.longitude}` : ''}`
     : ''
-
-  useEffect(() => {
-    if (session?.role === 'customer') {
-      reset({ name: session.name ?? '', email: session.email })
-    }
-  }, [reset, session])
 
   const mutation = useMutation({
     mutationFn: (reservation: ReservationInput) => restaurantService.createReservation(reservation),
@@ -74,7 +66,6 @@ export function RestaurantDetailPage() {
         review,
         ...previous.filter((item) => item.id !== review.id),
       ])
-      setReviewAuthor('')
       setReviewComment('')
       setReviewRating(5)
       setReviewMessage('¡Gracias! Tu comentario ya aparece en las reseñas.')
@@ -82,7 +73,11 @@ export function RestaurantDetailPage() {
     onError: (error) => setReviewMessage(error instanceof Error ? error.message : 'No se pudo publicar el comentario.'),
   })
 
-  function submitReservation(contact: { name: string; email: string }) {
+  function submitReservation() {
+    if (session?.role !== 'customer') {
+      setMessage('Inicia sesión con una cuenta de cliente para solicitar una reserva.')
+      return
+    }
     if (!restaurant || !selectedTime) {
       setMessage('Elige uno de los horarios disponibles para continuar.')
       return
@@ -93,18 +88,18 @@ export function RestaurantDetailPage() {
       date,
       time: selectedTime,
       guests,
-      name: session?.name ?? contact.name,
-      email: session?.email ?? contact.email,
+      name: session.name ?? '',
+      email: session.email,
     })
   }
 
   function submitReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!restaurant) return
+    if (!restaurant || session?.role !== 'customer') return
     setReviewMessage('')
     reviewMutation.mutate({
       restaurantId: restaurant.id,
-      author: session?.name ?? reviewAuthor,
+      author: session.name ?? '',
       rating: reviewRating,
       comment: reviewComment,
     })
@@ -122,9 +117,10 @@ export function RestaurantDetailPage() {
   if (isLoading) return <div className="page-container loading-copy">Cargando restaurante…</div>
   if (isError || !restaurant) return <div className="page-container state-card"><strong>No encontramos ese restaurante.</strong><Link className="text-link" to="/restaurantes"><ArrowLeft size={15} /> Volver a explorar</Link></div>
   function toggleFavorite(restaurantItem: Restaurant) {
+    if (session?.role !== 'customer') return
     const updated = isFavorite ? savedFavorites.filter((favorite) => favorite !== restaurantItem.id) : [...savedFavorites, restaurantItem.id]
-    localStorage.setItem('mesa-favorites', JSON.stringify(updated))
-    setSavedFavorites(updated)
+    localStorage.setItem(`mesa-favorites-${favoriteAccountId}`, JSON.stringify(updated))
+    setFavoriteState({ accountId: favoriteAccountId, ids: updated })
     setMessage(isFavorite ? 'Restaurante eliminado de tus favoritos.' : 'Restaurante guardado en tus favoritos.')
   }
 
@@ -135,7 +131,7 @@ export function RestaurantDetailPage() {
     <div className="page-container detail-page">
       <div className="breadcrumb"><Link to="/restaurantes"><ArrowLeft size={14} /> Explorar</Link><span>/</span><span>{restaurant.neighborhood}</span><span>/</span><span>{restaurant.name}</span></div>
       <div className="detail-badges"><span className="badge-dark">{isOsm ? 'OPENSTREETMAP' : 'ELECCIÓN DE LA CASA'}</span><span>{restaurant.cuisine}</span><span>{restaurant.tags[0]}</span></div>
-      <div className="detail-title-row"><div><h1>{restaurant.name}</h1><div className="detail-subtitle">{restaurant.reviewCount > 0 ? <><span className="rating"><Star size={15} fill="currentColor" /> {restaurant.rating.toFixed(1)}</span><span>({restaurant.reviewCount.toLocaleString('es-PE')} reseñas {isDemo ? 'de ejemplo' : 'de clientes'})</span></> : <span className="rating data-rating">Datos de OpenStreetMap</span>}<span>·</span>{restaurant.pricePerPerson > 0 ? <span>S/ {restaurant.pricePerPerson} por persona</span> : <span className="data-price">Precio no disponible</span>}<span>·</span><span><MapPin size={14} /> {isOsm && restaurant.address ? restaurant.address : `${restaurant.neighborhood}, ${restaurant.city}`}</span>{isOsm && <><span>·</span><span>{formatDistance(restaurant.distanceKm)} de ti</span></>}</div></div><button className={`button button-outline${isFavorite ? ' selected' : ''}`} onClick={() => toggleFavorite(restaurant)}><Heart size={15} fill={isFavorite ? 'currentColor' : 'none'} /> {isFavorite ? 'Guardado' : 'Guardar'}</button></div>
+      <div className="detail-title-row"><div><h1>{restaurant.name}</h1><div className="detail-subtitle">{restaurant.reviewCount > 0 ? <><span className="rating"><Star size={15} fill="currentColor" /> {restaurant.rating.toFixed(1)}</span><span>({restaurant.reviewCount.toLocaleString('es-PE')} reseñas {isDemo ? 'de ejemplo' : 'de clientes'})</span></> : <span className="rating data-rating">Datos de OpenStreetMap</span>}<span>·</span>{restaurant.pricePerPerson > 0 ? <span>S/ {restaurant.pricePerPerson} por persona</span> : <span className="data-price">Precio no disponible</span>}<span>·</span><span><MapPin size={14} /> {isOsm && restaurant.address ? restaurant.address : `${restaurant.neighborhood}, ${restaurant.city}`}</span>{isOsm && <><span>·</span><span>{formatDistance(restaurant.distanceKm)} de ti</span></>}</div></div>{session?.role === 'customer' ? <button className={`button button-outline${isFavorite ? ' selected' : ''}`} type="button" onClick={() => toggleFavorite(restaurant)}><Heart size={15} fill={isFavorite ? 'currentColor' : 'none'} /> {isFavorite ? 'Guardado' : 'Guardar'}</button> : <Link className="button button-outline" to="/login" state={{ from: location.pathname }}><Heart size={15} /> Inicia sesión para guardar</Link>}</div>
 
       {photos.length > 0 ? (
         <div className={`detail-gallery${photos.length === 1 ? ' single' : ''}`}>
@@ -190,12 +186,10 @@ export function RestaurantDetailPage() {
                 </div>
               )}
             </div>
-            {isDemo || session?.role === 'customer' ? <form className="review-form" onSubmit={submitReview}>
+            {isSessionLoading ? <p className="reviews-state" role="status">Verificando tu cuenta…</p>
+              : session?.role === 'customer' ? <form className="review-form" onSubmit={submitReview}>
               <strong>Comparte tu experiencia</strong>
-              {isDemo && <label className="contact-field">Tu nombre
-                <input value={reviewAuthor} onChange={(event) => setReviewAuthor(event.target.value)} maxLength={80} required placeholder="Nombre y apellido" />
-              </label>}
-              {!isDemo && <p className="review-account-name">Comentario como <strong>{session?.name}</strong></p>}
+              <p className="review-account-name">Comentario como <strong>{session.name}</strong></p>
               <fieldset className="review-rating-picker">
                 <legend>Tu valoración</legend>
                 <div role="group" aria-label="Valora de 1 a 5 estrellas">
@@ -292,28 +286,26 @@ export function RestaurantDetailPage() {
               <p className="booking-osm-note">Este restaurante no gestiona reservas en GastroRed. Llama o visítalo directamente para confirmar disponibilidad.</p>
               <a className="button button-primary booking-submit" href={directionsUrl} target="_blank" rel="noreferrer">Cómo llegar <ArrowRight size={16} /></a>
             </div>
-          ) : (
-          <form className="booking-form" onSubmit={handleSubmit(submitReservation)}>
+          ) : isSessionLoading ? <div className="booking-form reviews-state" role="status">Verificando tu cuenta…</div>
+            : session?.role === 'customer' ? (
+          <form className="booking-form" onSubmit={(event) => { event.preventDefault(); submitReservation() }}>
             <span className="eyebrow"><span className="availability-dot" /> RESERVA TU MESA</span><h2>¿Cuándo <em>nos vemos?</em></h2>
             <label className="booking-field"><span><CalendarDays size={15} /> Fecha</span><input type="date" value={date} min={todayLocal} onChange={(event) => setDate(event.target.value)} /></label>
             <div className="booking-field"><span><Users size={15} /> Comensales</span><div className="guest-stepper"><button type="button" aria-label="Quitar comensales" onClick={() => setGuests((count) => Math.max(1, count - 1))}><Minus size={14} /></button><strong>{guests} personas</strong><button type="button" aria-label="Añadir comensales" onClick={() => setGuests((count) => Math.min(12, count + 1))}><Plus size={14} /></button></div></div>
-            <div className="booking-times"><span><Clock3 size={15} /> Horarios de demostración</span><div>{restaurant.availableTimes.map((time) => <button type="button" key={time} className={`time-chip${selectedTime === time ? ' active' : ''}`} aria-pressed={selectedTime === time} onClick={() => { setSelectedTime(time); setMessage('') }}>{time}</button>)}</div></div>
-            {selectedTime && <div className="availability-callout"><Check size={15} /> Horario de ejemplo. La disponibilidad real debe confirmarla el restaurante.</div>}
-            {isDemo ? <>
-              <label className="contact-field">Tu nombre<input autoComplete="name" {...register('name')} placeholder="Nombre y apellido" />{errors.name && <span className="field-error">{errors.name.message}</span>}</label>
-              <label className="contact-field">Correo electrónico<input type="email" autoComplete="email" {...register('email')} placeholder="tu@correo.com" />{errors.email && <span className="field-error">{errors.email.message}</span>}</label>
-            </> : session?.role === 'customer' ? (
-              <p className="booking-account">Solicitud a nombre de <strong>{session.name}</strong> · {session.email}</p>
-            ) : (
-              <div className="review-login-prompt">
-                <strong>Inicia sesión como cliente para solicitar una reserva.</strong>
-                <Link className="button button-outline" to="/login" state={{ from: location.pathname }}>Login o crear cuenta <ArrowRight size={14} /></Link>
-              </div>
-            )}
-            {(isDemo || session?.role === 'customer') && <button className="button button-primary booking-submit" type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Enviando solicitud…' : 'Solicitar reserva'} <ArrowRight size={16} /></button>}
+            <div className="booking-times"><span><Clock3 size={15} /> {isDemo ? 'Horarios de demostración' : 'Horarios indicados por el restaurante'}</span>{restaurant.availableTimes.length ? <div>{restaurant.availableTimes.map((time) => <button type="button" key={time} className={`time-chip${selectedTime === time ? ' active' : ''}`} aria-pressed={selectedTime === time} onClick={() => { setSelectedTime(time); setMessage('') }}>{time}</button>)}</div> : <p className="booking-no-times">Este restaurante aún no publica horarios de reserva. Consulta directamente con el local.</p>}</div>
+            {selectedTime && <div className="availability-callout"><Check size={15} /> {isDemo ? 'Horario de ejemplo.' : 'Horario seleccionado.'} La reserva quedará pendiente hasta confirmación del restaurante.</div>}
+            <p className="booking-account">Solicitud a nombre de <strong>{session.name}</strong> · {session.email}</p>
+            <button className="button button-primary booking-submit" type="submit" disabled={mutation.isPending || !restaurant.availableTimes.length}>{mutation.isPending ? 'Enviando solicitud…' : 'Solicitar reserva'} <ArrowRight size={16} /></button>
             {message && <p className={`booking-message${mutation.isError ? ' error' : ''}`} role="status">{message}</p>}
-            <small className="booking-footnote">{isDemo ? 'Modo demostración · No se envía ninguna reserva real.' : 'La solicitud queda pendiente hasta que el restaurante confirme la disponibilidad.'}</small>
+            <small className="booking-footnote">La solicitud queda pendiente hasta que el restaurante confirme la disponibilidad.</small>
           </form>
+          ) : (
+            <div className="booking-form booking-login-wall">
+              <span className="eyebrow"><span className="availability-dot" /> RESERVA TU MESA</span>
+              <h2>¿Cuándo <em>nos vemos?</em></h2>
+              <p>Inicia sesión o crea una cuenta de cliente para elegir horario y solicitar una mesa. La solicitud quedará pendiente hasta que el restaurante la confirme.</p>
+              <Link className="button button-primary booking-submit" to="/login" state={{ from: location.pathname }}>Iniciar sesión o registrarme <ArrowRight size={16} /></Link>
+            </div>
           )}
         </aside>
       </div>

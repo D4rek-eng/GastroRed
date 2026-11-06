@@ -76,7 +76,7 @@ export type ReservationInput = {
 
 export type Reservation = ReservationInput & {
   id: string
-  status: 'pending' | 'confirmed'
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   restaurantName: string
   restaurantImage: string
 }

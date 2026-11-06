@@ -52,14 +52,16 @@ El tema se ajusta a la hora local del dispositivo: modo claro de 06:00 a 17:59 y
 - Registro e inicio de sesión de clientes con correo personal; registro de restaurantes con dominio único, correo corporativo del mismo dominio y acceso mediante dominio y contraseña.
 - Verificación de correo por código; los códigos solo se devuelven en desarrollo cuando no hay SMTP configurado.
 - Plan cliente Pro a S/ 100/mes y plan Restaurante a S/ 120/mes. Mercado Pago crea suscripciones mensuales; la activación depende de validar el webhook firmado. Se requieren credenciales de despliegue; el repositorio no incluye claves.
-- Reservas pendientes y comentarios de clientes autenticados persistidos en MySQL al desactivar el modo demo. Cada cuenta puede publicar una opinión por restaurante.
+- Reservas, comentarios y favoritos personales requieren una cuenta de cliente con sesión. Las reservas y comentarios se persisten en MySQL al desactivar el modo demo; cada cuenta puede publicar una opinión por restaurante y mantener favoritos por cuenta en este dispositivo.
 - Guía curada siempre disponible con carta, precios por plato, reseñas y fotografías reales; cada imagen tiene su crédito y los locales sin foto propia muestran un espacio neutro, nunca una imagen referencial.
 - Ficha de restaurante con menú y reseñas de ejemplo, comentarios autenticados de 1 a 5 estrellas, mapa de Google, distancia desde la ubicación del usuario con permiso, favoritos guardados en este dispositivo y solicitud de reserva con validación Zod/React Hook Form.
 - Comparador de hasta cuatro restaurantes, criterios prioritarios, puntuación ponderada explicada, normalizada y probada, con contraste de tema oscuro.
-- Portal de restaurantes protegido por sesión y suscripción activa. El dominio y correo corporativos se verifican durante el registro; la ficha pública debe vincularse a una cuenta antes de editarla.
-- En modo demo, comentarios y favoritos viven en el navegador y las reservas solo en memoria; no son compartidos ni reservas reales.
+- Panel de restaurantes protegido por sesión y suscripción activa: permite editar horario, turnos, política de reservas, precio promedio y precio de platos; muestra reservas pendientes y finalizadas, y permite confirmar o finalizar una solicitud.
+- Las reservas solo pueden solicitarse en un turno publicado por el restaurante. La ficha pública refleja los horarios y precios guardados.
+- El dominio y correo corporativos se verifican durante el registro; un responsable de GastroRed debe vincular la ficha pública a la cuenta antes de habilitar su administración.
+- En modo demo, el radio superior sigue siendo 200 m; el pago no se completa sin configurar API/Mercado Pago. Reservas y comentarios requieren sesión de cliente real.
 - Estados de carga, error y ausencia de resultados.
-- La cuenta de restaurante recién creada se registra en la base de datos; la vinculación a una ficha pública de la guía requiere asociar esa ficha. El portal no inventa una ficha cuando aún no está vinculada.
+- La cuenta de restaurante recién creada se registra en la base de datos; la vinculación a una ficha pública de la guía requiere asociar esa ficha. El panel informa cuando la cuenta todavía no está vinculada y no permite modificar fichas ajenas.
 
 ## Restaurantes cercanos y ubicación
 
@@ -75,17 +77,19 @@ Los restaurantes de ejemplo, horarios, reseñas, distancias de referencia y prec
 
 ## API y persistencia
 
-La API Node está en `server/`; MySQL se define en `server/migrations/001_initial.sql`. Las operaciones implementadas incluyen:
+La API Node está en `server/`; el esquema inicial y los cambios de gestión están en `server/migrations/001_initial.sql` y `server/migrations/002_restaurant_management.sql`. `npm run db:migrate` aplica las migraciones pendientes antes de iniciar la API. Las operaciones implementadas incluyen:
 
 - `POST /api/v1/auth/register`, `POST /api/v1/auth/verify-email`, `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`
 - `POST /api/v1/billing/checkout`, `POST /api/v1/billing/webhook`
 - `GET|POST /api/v1/reservations`
+- `GET /api/v1/owner/reservations`, `PATCH /api/v1/owner/reservations/{id}`
+- `GET /api/v1/restaurants/settings`, `GET /api/v1/restaurants/{id}`
 - `GET|POST /api/v1/restaurants/{id}/reviews`
 - `GET /api/v1/owner/restaurants`, `PATCH /api/v1/owner/restaurants/{id}`
 
 Las sesiones usan cookies `HttpOnly`, `SameSite=Lax` y `Secure` en producción; el servidor guarda solo el hash de cada token de sesión. Las contraseñas se derivan con scrypt. La API valida el rol, el estado del plan y la propiedad antes de aceptar cambios del portal. El catálogo editorial permanece en el frontend; las cuentas de restaurante requieren una asociación explícita con una ficha de catálogo para editarla.
 
-Las imágenes y fichas de restaurantes seed son ilustrativas. La disponibilidad que aparece al solicitar una reserva tampoco se confirma automáticamente; todas las nuevas solicitudes se guardan como `pending`.
+Las imágenes y fichas de restaurantes seed son ilustrativas. Las solicitudes nuevas se guardan como `pending`; el restaurante puede confirmarlas y luego marcarlas como `completed`. Una reserva no se considera confirmada solo por haber enviado la solicitud.
 
 ## Verificación
 
@@ -96,4 +100,4 @@ npm run lint
 npm run check:server
 ```
 
-El diseño es mobile-first y tiene breakpoints para móvil, tablet y escritorio. Antes de producción, verificar overflow y accesibilidad con los navegadores objetivo, y conectar disponibilidad, autenticación y permisos reales.
+El diseño es mobile-first y tiene breakpoints para móvil, tablet y escritorio. Antes de producción, configurar MySQL, SMTP y Mercado Pago, vincular cada cuenta de restaurante a su ficha validada y verificar el flujo de reservas con las credenciales de despliegue.

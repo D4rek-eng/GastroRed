@@ -188,7 +188,15 @@ img { max-width: 100%; }
 .radius-picker>span:first-child { color: #5c554d; font-size: 8px; font-weight: 700; letter-spacing: .8px; }
 .radius-picker button { padding: 5px 10px; border: 1px solid var(--line); border-radius: 16px; background: #fff; color: #514b44; font-size: 9px; cursor: pointer; }
 .radius-picker button.active { border-color: #d9b0a2; background: #f9efea; color: var(--rust); font-weight: 600; }
+.radius-picker button.radius-locked { display: inline-flex; align-items: center; gap: 4px; border-style: dashed; color: #777067; }
 .radius-note { margin-left: auto; color: #9b948c; font-size: 8px; }
+.radius-note a { color: var(--rust); font-weight: 600; text-underline-offset: 3px; }
+.radius-upgrade-prompt { display: flex; align-items: center; gap: 14px; margin: -2px 0 16px; padding: 14px 16px; border: 1px solid #e6d3c8; border-radius: 8px; background: #fbf5f0; }
+.radius-upgrade-prompt>div { display: grid; gap: 3px; flex: 1; }
+.radius-upgrade-prompt strong { color: #3d3832; font-size: 11px; }
+.radius-upgrade-prompt span { color: #706961; font-size: 9px; }
+.radius-upgrade-prompt .button { padding: 9px 12px; font-size: 9px; }
+.radius-prompt-dismiss { display: grid; place-items: center; padding: 5px; border: 0; background: transparent; color: #777067; cursor: pointer; }
 .nearby-map { position: relative; z-index: 0; isolation: isolate; height: 280px; margin: 0 0 14px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #ece8e2; }
 .nearby-map .leaflet-container { width: 100%; height: 100%; font-family: var(--sans); }
 .nearby-map-loading { display: grid; place-items: center; color: #8d867e; font-size: 9px; letter-spacing: .3px; }
@@ -499,6 +507,27 @@ img { max-width: 100%; }
 .owner-form textarea { resize: vertical; }
 .owner-form .contact-field small { color: #8b8379; font-size: 8px; font-weight: 400; }
 .owner-form .button { justify-self: start; }
+.owner-dashboard-tabs { display: flex; gap: 7px; margin: 18px 0 4px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.owner-dashboard-tabs button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 11px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #706961; font-size: 10px; cursor: pointer; }
+.owner-dashboard-tabs button.active { border-color: #e8d8cf; background: #fbf5f0; color: var(--rust); font-weight: 600; }
+.owner-menu-prices { display: grid; gap: 12px; margin: 2px 0 0; padding: 13px; border: 1px solid var(--line); border-radius: 8px; }
+.owner-menu-prices legend { padding: 0 5px; color: #706961; font-size: 10px; font-weight: 600; }
+.owner-menu-prices .contact-field { margin: 0; }
+.owner-reservation-list { display: grid; gap: 8px; margin-top: 16px; }
+.owner-reservation { display: grid; grid-template-columns: 72px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.owner-reservation-date { display: grid; gap: 3px; color: #706961; font-size: 9px; text-align: center; }
+.owner-reservation-date strong { color: var(--ink); font-size: 14px; }
+.owner-reservation-details { display: grid; gap: 4px; min-width: 0; }
+.owner-reservation-details>strong { color: var(--ink); font-size: 11px; }
+.owner-reservation-details>span:not(.reservation-status) { overflow-wrap: anywhere; color: #706961; font-size: 9px; }
+.owner-reservation .reservation-status { justify-self: start; margin-top: 2px; }
+.reservation-status.completed { color: #476449; background: #eaf2e9; }
+.owner-reservation-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.owner-reservation-actions .button { padding: 8px 10px; font-size: 9px; }
+.owner-link-warning { margin: 12px 0; }
+.booking-login-wall>p { margin: 0; color: #706961; font-size: 10px; line-height: 1.65; }
+.booking-login-wall .booking-submit { margin-top: 8px; }
+.booking-no-times { margin: 0; color: #827b73; font-size: 9px; line-height: 1.55; }
 .owner-message { margin: 0; color: #476449; font-size: 10px; }
 .owner-message.error { color: #a53422; }
 .owner-view-link { margin-top: 18px; }
@@ -541,6 +570,10 @@ img { max-width: 100%; }
 .account-plan-status { display: grid; gap: 4px; margin: 22px 0 15px; padding: 14px 0; border-block: 1px solid var(--line); }
 .account-plan-status strong { font: 500 22px var(--serif); }
 .account-plan-status span { color: #766f67; font-size: 10px; }
+.account-pro-benefits { display: grid; gap: 5px; margin: 0 0 14px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.account-pro-benefits strong { color: var(--ink); font-size: 11px; }
+.account-pro-benefits p, .account-billing-note { margin: 0; color: #766f67; font-size: 9px; line-height: 1.6; }
+.account-billing-note { margin-top: 9px; }
 .account-checkout { width: 100%; border-radius: 999px; }
 .account-signout { display: block; margin: 14px auto 0; border: 0; background: transparent; color: #766f67; font-size: 10px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 
@@ -665,6 +698,12 @@ img { max-width: 100%; }
   .owner-editor-heading { align-items: flex-start; gap: 8px; }
   .owner-editor-actions { flex-wrap: wrap; justify-content: flex-end; }
   .owner-editor-actions>span { flex-basis: 100%; text-align: right; }
+  .owner-dashboard-tabs { flex-wrap: wrap; }
+  .owner-reservation { grid-template-columns: 52px minmax(0,1fr); gap: 10px; }
+  .owner-reservation-actions { grid-column: 2; justify-content: flex-start; }
+  .radius-upgrade-prompt { align-items: flex-start; flex-wrap: wrap; }
+  .radius-upgrade-prompt>div { flex-basis: calc(100% - 35px); }
+  .radius-upgrade-prompt .button { margin-left: 0; }
   .booking-card { position: static; grid-row: 1; }
   .booking-card h2 { font-size: 26px; }
   .detail-section { padding: 19px; }
@@ -963,7 +1002,11 @@ img { max-width: 100%; }
 :root[data-theme="dark"] .account-plan-choice label small,
 :root[data-theme="dark"] .verification-copy,
 :root[data-theme="dark"] .account-plan-status span,
+:root[data-theme="dark"] .account-pro-benefits p,
+:root[data-theme="dark"] .account-billing-note,
 :root[data-theme="dark"] .account-demo-notice { color: #b3aaa0; }
+:root[data-theme="dark"] .account-pro-benefits { border-color: #393632; }
+:root[data-theme="dark"] .account-pro-benefits strong { color: #eee9e2; }
 :root[data-theme="dark"] .review-form .contact-field input,
 :root[data-theme="dark"] .review-form .contact-field textarea,
 :root[data-theme="dark"] .owner-form input,
@@ -1003,6 +1046,24 @@ img { max-width: 100%; }
 :root[data-theme="dark"] .radius-picker>span:first-child { color: #d0c6ba; }
 :root[data-theme="dark"] .radius-picker button { background: #24221f; border-color: #504a43; color: #d0c6ba; }
 :root[data-theme="dark"] .radius-picker button.active { background: #392b26; border-color: #664338; color: #e8c597; }
+:root[data-theme="dark"] .radius-picker button.radius-locked { color: #b3aaa0; }
+:root[data-theme="dark"] .radius-upgrade-prompt { background: #302721; border-color: #554238; }
+:root[data-theme="dark"] .radius-upgrade-prompt strong { color: #eee9e2; }
+:root[data-theme="dark"] .radius-upgrade-prompt span,
+:root[data-theme="dark"] .radius-prompt-dismiss { color: #b3aaa0; }
+:root[data-theme="dark"] .owner-dashboard-tabs { border-color: #393632; }
+:root[data-theme="dark"] .owner-dashboard-tabs button { color: #b3aaa0; }
+:root[data-theme="dark"] .owner-dashboard-tabs button.active { background: #392b26; border-color: #664338; color: #e8c597; }
+:root[data-theme="dark"] .owner-menu-prices { border-color: #504a43; }
+:root[data-theme="dark"] .owner-menu-prices legend,
+:root[data-theme="dark"] .owner-reservation-date,
+:root[data-theme="dark"] .owner-reservation-details>span:not(.reservation-status) { color: #b3aaa0; }
+:root[data-theme="dark"] .owner-reservation { border-color: #393632; }
+:root[data-theme="dark"] .owner-reservation-date strong,
+:root[data-theme="dark"] .owner-reservation-details>strong { color: #eee9e2; }
+:root[data-theme="dark"] .reservation-status.completed { color: #c3dec1; background: #293629; }
+:root[data-theme="dark"] .booking-login-wall>p { color: #b3aaa0; }
+:root[data-theme="dark"] .booking-no-times { color: #b3aaa0; }
 :root[data-theme="dark"] .nearby-map { border-color: #393632; background: #2a2724; }
 :root[data-theme="dark"] .nearby-map .leaflet-control-attribution { background: rgba(36, 33, 30, .88); color: #b3aaa0; }
 :root[data-theme="dark"] .nearby-map .leaflet-control-attribution a { color: #e0b98b; }

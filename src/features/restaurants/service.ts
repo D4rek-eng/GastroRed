@@ -6,7 +6,8 @@ import { publicAsset } from '../../lib/publicAsset'
 
 const demoMode = import.meta.env.VITE_DEMO_MODE !== 'false'
 const ownerSettingsStorageKey = 'mesa-owner-settings'
-type RestaurantOwnerSettings = Pick<Restaurant, 'hours' | 'availableTimes' | 'reservationPolicy'>
+type RestaurantOwnerSettings = Pick<Restaurant, 'hours' | 'availableTimes' | 'reservationPolicy' | 'pricePerPerson' | 'menuHighlights'>
+type PublicRestaurantSettings = Partial<RestaurantOwnerSettings> & { id: string }
 
 export function findRestaurantById(id: string): Restaurant | null {
   return restaurants.find((item) => item.id === id) ?? getStoredNearbyPlace(id)
@@ -19,6 +20,19 @@ function getDemoOwnerSettings(): Record<string, RestaurantOwnerSettings> {
 
 function withDemoSettings(restaurant: Restaurant): Restaurant {
   return { ...restaurant, ...getDemoOwnerSettings()[restaurant.id] }
+}
+
+function mergeSettings(
+  restaurant: Restaurant,
+  settings: PublicRestaurantSettings | undefined,
+  hideUnpublishedAvailability = false,
+): Restaurant {
+  return {
+    ...restaurant,
+    ...settings,
+    ...(hideUnpublishedAvailability && !settings?.availableTimes ? { availableTimes: [] } : {}),
+    id: restaurant.id,
+  }
 }
 
 function getUserReviews(id: string): RestaurantReview[] {
@@ -79,13 +93,19 @@ export const restaurantService = {
   async list(filters: RestaurantFilters, signal?: AbortSignal): Promise<Restaurant[]> {
     await Promise.resolve()
     if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
-    return filterRestaurants(restaurants.map((restaurant) => demoMode ? withDemoSettings(restaurant) : restaurant), filters)
+    if (demoMode) return filterRestaurants(restaurants.map(withDemoSettings), filters)
+    const settings = await apiRequest<PublicRestaurantSettings[]>('/api/v1/restaurants/settings', { signal })
+    const settingsById = new Map(settings.map((item) => [item.id, item]))
+    return filterRestaurants(restaurants.map((restaurant) => mergeSettings(restaurant, settingsById.get(restaurant.id), true)), filters)
   },
 
   async listOwned(restaurantIds: string[], signal?: AbortSignal): Promise<Restaurant[]> {
     if (!demoMode) {
-      const ownedIds = await apiRequest<string[]>('/api/v1/owner/restaurants', { signal })
-      return restaurants.filter((restaurant) => ownedIds.includes(restaurant.id))
+      const owned = await apiRequest<PublicRestaurantSettings[]>('/api/v1/owner/restaurants', { signal })
+      const settingsById = new Map(owned.map((item) => [item.id, item]))
+      return restaurants
+        .filter((restaurant) => settingsById.has(restaurant.id))
+        .map((restaurant) => mergeSettings(restaurant, settingsById.get(restaurant.id)))
     }
     if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
     return restaurants
@@ -98,7 +118,10 @@ export const restaurantService = {
     if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
     const restaurant = findRestaurantById(id)
     if (!restaurant) throw new Error('No encontramos ese restaurante.')
-    return demoMode && restaurant.source !== 'osm' ? withDemoSettings(restaurant) : restaurant
+    if (restaurant.source === 'osm') return restaurant
+    if (demoMode) return withDemoSettings(restaurant)
+    const settings = await apiRequest<PublicRestaurantSettings>(`/api/v1/restaurants/${encodeURIComponent(id)}`, { signal })
+    return mergeSettings(restaurant, settings, true)
   },
 
   async listReviews(id: string, signal?: AbortSignal): Promise<RestaurantReview[]> {
@@ -204,6 +227,27 @@ export const restaurantService = {
         restaurantName: restaurant?.name ?? reservation.restaurantName,
         restaurantImage: restaurant?.image ?? publicAsset(reservation.restaurantImage),
       }
+    })
+  },
+
+  async listOwnerReservations(signal?: AbortSignal): Promise<Reservation[]> {
+    if (demoMode) return []
+    const reservations = await apiRequest<Reservation[]>('/api/v1/owner/reservations', { signal })
+    return reservations.map((reservation) => {
+      const restaurant = findRestaurantById(reservation.restaurantId)
+      return {
+        ...reservation,
+        restaurantName: restaurant?.name ?? reservation.restaurantName,
+        restaurantImage: restaurant?.image ?? publicAsset(reservation.restaurantImage),
+      }
+    })
+  },
+
+  async updateReservationStatus(id: string, status: 'confirmed' | 'completed' | 'cancelled'): Promise<Reservation> {
+    if (demoMode) throw new Error('La gestión de reservas requiere conectar la API y MySQL.')
+    return apiRequest<Reservation>(`/api/v1/owner/reservations/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     })
   },
 }

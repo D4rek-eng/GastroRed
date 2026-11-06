@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import cors from 'cors'
 import express, { type NextFunction, type Request, type Response } from 'express'
@@ -101,6 +101,42 @@ const reviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
   comment: z.string().trim().min(1).max(1000),
 })
+
+const restaurantSettingsSchema = z.object({
+  hours: z.string().trim().min(1).max(120),
+  availableTimes: z.array(z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)).min(1).max(30),
+  reservationPolicy: z.string().trim().max(240),
+  pricePerPerson: z.number().min(0).max(5000),
+  menuHighlights: z.array(z.object({
+    name: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(500),
+    price: z.number().min(0).max(5000),
+    image: z.string().max(500).optional(),
+  })).max(30),
+})
+
+const publicSettingsSchema = z.object({
+  hours: z.string(),
+  availableTimes: z.array(z.string()),
+  reservationPolicy: z.string(),
+  pricePerPerson: z.number(),
+  menuHighlights: restaurantSettingsSchema.shape.menuHighlights,
+})
+
+function settingsFromRow(row: RowDataPacket) {
+  const parsedMenu = row.menuHighlights
+    ? typeof row.menuHighlights === 'string' ? JSON.parse(row.menuHighlights) : row.menuHighlights
+    : undefined
+  const parsed = publicSettingsSchema.partial().safeParse({
+    ...(row.hours !== null && row.hours !== undefined ? { hours: row.hours } : {}),
+    ...(row.availableTimes !== null && row.availableTimes !== undefined ? { availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes) : row.availableTimes } : {}),
+    ...(row.reservationPolicy !== null && row.reservationPolicy !== undefined ? { reservationPolicy: row.reservationPolicy } : {}),
+    ...(row.pricePerPerson !== null && row.pricePerPerson !== undefined ? { pricePerPerson: Number(row.pricePerPerson) } : {}),
+    ...(parsedMenu ? { menuHighlights: parsedMenu } : {}),
+  })
+  if (!parsed.success) throw new Error('Restaurant settings in the database are invalid.')
+  return parsed.data
+}
 
 type UserRow = RowDataPacket & {
   id: string
@@ -644,6 +680,51 @@ app.get('/api/v1/reservations', requireAuth, requireRole('customer'), async (req
   response.json(rows)
 })
 
+app.get('/api/v1/owner/reservations', requireAuth, requireRole('restaurant'), requireActiveRestaurant, async (request, response) => {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT b.id, b.restaurant_id AS restaurantId, r.name AS restaurantName, r.image AS restaurantImage,
+            DATE_FORMAT(b.reservation_date, '%Y-%m-%d') AS date,
+            TIME_FORMAT(b.reservation_time, '%H:%i') AS time,
+            b.guests, b.customer_name AS name, b.customer_email AS email, b.status
+     FROM reservations b
+     JOIN restaurants r ON r.id = b.restaurant_id
+     JOIN restaurant_accounts ra ON ra.restaurant_id = b.restaurant_id
+     WHERE ra.user_id = ?
+     ORDER BY b.reservation_date ASC, b.reservation_time ASC`,
+    [request.account!.id],
+  )
+  response.json(rows)
+})
+
+app.patch('/api/v1/owner/reservations/:id', requireAuth, requireRole('restaurant'), requireActiveRestaurant, async (request, response) => {
+  const input = z.object({ status: z.enum(['confirmed', 'completed', 'cancelled']) }).safeParse(request.body)
+  if (!input.success) throw new HttpError(400, 'Elige un estado válido para la reserva.')
+  const reservationId = parseRestaurantId(request.params.id)
+  const [result] = await pool.execute(
+    `UPDATE reservations
+     SET status = ?
+     WHERE id = ?
+       AND status IN ('pending', 'confirmed')
+       AND restaurant_id IN (
+         SELECT restaurant_id FROM restaurant_accounts WHERE user_id = ? AND restaurant_id IS NOT NULL
+       )`,
+    [input.data.status, reservationId, request.account!.id],
+  )
+  if (!('affectedRows' in result) || result.affectedRows !== 1) {
+    throw new HttpError(404, 'La reserva no existe, ya fue cerrada o no pertenece a tu restaurante.')
+  }
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT b.id, b.restaurant_id AS restaurantId, r.name AS restaurantName, r.image AS restaurantImage,
+            DATE_FORMAT(b.reservation_date, '%Y-%m-%d') AS date,
+            TIME_FORMAT(b.reservation_time, '%H:%i') AS time,
+            b.guests, b.customer_name AS name, b.customer_email AS email, b.status
+     FROM reservations b JOIN restaurants r ON r.id = b.restaurant_id
+     WHERE b.id = ? LIMIT 1`,
+    [reservationId],
+  )
+  response.json(rows[0])
+})
+
 app.post('/api/v1/reservations', requireAuth, requireRole('customer'), async (request, response) => {
   const parsed = reservationSchema.safeParse(request.body)
   if (!parsed.success) throw new HttpError(400, 'Revisa la fecha, hora y número de personas.')
@@ -654,6 +735,15 @@ app.post('/api/v1/reservations', requireAuth, requireRole('customer'), async (re
     [parsed.data.restaurantId, 'catalog'],
   )
   if (!restaurants.length) throw new HttpError(404, 'Este restaurante no recibe reservas en GastroRed.')
+  const [settings] = await pool.execute<RowDataPacket[]>(
+    'SELECT available_times AS availableTimes FROM restaurant_settings WHERE restaurant_id = ? LIMIT 1',
+    [parsed.data.restaurantId],
+  )
+  const availableTimes = settings[0]?.availableTimes
+    ? typeof settings[0].availableTimes === 'string' ? JSON.parse(settings[0].availableTimes) as string[] : settings[0].availableTimes as string[]
+    : []
+  if (!availableTimes.length) throw new HttpError(409, 'El restaurante todavía no publica disponibilidad para reservas.')
+  if (!availableTimes.includes(parsed.data.time)) throw new HttpError(409, 'Ese horario ya no está disponible. Elige otro turno.')
   const id = randomUUID()
   await pool.execute(
     `INSERT INTO reservations
@@ -679,6 +769,30 @@ app.post('/api/v1/reservations', requireAuth, requireRole('customer'), async (re
     restaurantName: (restaurants[0] as { name: string }).name,
     restaurantImage: (restaurants[0] as { image: string }).image,
   })
+})
+
+app.get('/api/v1/restaurants/settings', async (_request, response) => {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT restaurant_id AS id, hours, available_times AS availableTimes,
+            reservation_policy AS reservationPolicy, price_per_person AS pricePerPerson,
+            menu_highlights AS menuHighlights
+     FROM restaurant_settings`,
+  )
+  response.json(rows.map((row) => ({ id: row.id, ...settingsFromRow(row) })))
+})
+
+app.get('/api/v1/restaurants/:id', async (request, response) => {
+  const restaurantId = parseRestaurantId(request.params.id)
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT r.id, s.hours, s.available_times AS availableTimes,
+            s.reservation_policy AS reservationPolicy, s.price_per_person AS pricePerPerson,
+            s.menu_highlights AS menuHighlights
+     FROM restaurants r LEFT JOIN restaurant_settings s ON s.restaurant_id = r.id
+     WHERE r.id = ? LIMIT 1`,
+    [restaurantId],
+  )
+  if (!rows.length) throw new HttpError(404, 'No encontramos ese restaurante.')
+  response.json({ id: restaurantId, ...settingsFromRow(rows[0]) })
 })
 
 app.get('/api/v1/restaurants/:id/reviews', async (request, response) => {
@@ -736,18 +850,20 @@ app.post('/api/v1/restaurants/:id/reviews', requireAuth, requireRole('customer')
 
 app.get('/api/v1/owner/restaurants', requireAuth, requireRole('restaurant'), requireActiveRestaurant, async (request, response) => {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    'SELECT restaurant_id AS id FROM restaurant_accounts WHERE user_id = ? AND restaurant_id IS NOT NULL',
+    `SELECT r.id, s.hours, s.available_times AS availableTimes,
+            s.reservation_policy AS reservationPolicy, s.price_per_person AS pricePerPerson,
+            s.menu_highlights AS menuHighlights
+     FROM restaurant_accounts ra
+     JOIN restaurants r ON r.id = ra.restaurant_id
+     LEFT JOIN restaurant_settings s ON s.restaurant_id = r.id
+     WHERE ra.user_id = ?`,
     [request.account!.id],
   )
-  response.json(rows.map((row) => row.id))
+  response.json(rows.map((row) => ({ id: row.id, ...settingsFromRow(row) })))
 })
 
 app.patch('/api/v1/owner/restaurants/:id', requireAuth, requireRole('restaurant'), requireActiveRestaurant, async (request, response) => {
-  const input = z.object({
-    hours: z.string().trim().min(1).max(120),
-    availableTimes: z.array(z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)).min(1).max(30),
-    reservationPolicy: z.string().trim().max(240),
-  }).safeParse(request.body)
+  const input = restaurantSettingsSchema.safeParse(request.body)
   if (!input.success) throw new HttpError(400, 'Revisa los horarios y la política de reservas.')
   const restaurantId = parseRestaurantId(request.params.id)
   const [owned] = await pool.execute<RowDataPacket[]>(
@@ -757,11 +873,20 @@ app.patch('/api/v1/owner/restaurants/:id', requireAuth, requireRole('restaurant'
   if (!owned.length) throw new HttpError(403, 'Tu cuenta no administra este restaurante.')
   try {
     await pool.execute(
-      `INSERT INTO restaurant_settings (restaurant_id, hours, available_times, reservation_policy)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO restaurant_settings
+         (restaurant_id, hours, available_times, reservation_policy, price_per_person, menu_highlights)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE hours = VALUES(hours), available_times = VALUES(available_times),
-         reservation_policy = VALUES(reservation_policy)`,
-      [restaurantId, input.data.hours, JSON.stringify(input.data.availableTimes), input.data.reservationPolicy],
+         reservation_policy = VALUES(reservation_policy), price_per_person = VALUES(price_per_person),
+         menu_highlights = VALUES(menu_highlights)`,
+      [
+        restaurantId,
+        input.data.hours,
+        JSON.stringify(input.data.availableTimes),
+        input.data.reservationPolicy,
+        input.data.pricePerPerson,
+        JSON.stringify(input.data.menuHighlights),
+      ],
     )
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_NO_REFERENCED_ROW_2') {
@@ -808,11 +933,29 @@ async function findAccountById(id: string): Promise<AccountRecord | null> {
 }
 
 export async function initializeDatabase(): Promise<void> {
-  const migration = await readFile(resolve('server/migrations/001_initial.sql'), 'utf8')
+  const migrationsDirectory = resolve('server/migrations')
   const connection = await pool.getConnection()
   try {
-    for (const statement of migration.split(';').map((part) => part.trim()).filter(Boolean)) {
-      await connection.query(statement)
+    await connection.query(
+      `CREATE TABLE IF NOT EXISTS schema_migrations (
+         name VARCHAR(160) NOT NULL PRIMARY KEY,
+         applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    )
+    const migrations = (await readdir(migrationsDirectory))
+      .filter((name) => /^\d+_[\w-]+\.sql$/.test(name))
+      .sort()
+    for (const name of migrations) {
+      const [applied] = await connection.execute<RowDataPacket[]>(
+        'SELECT name FROM schema_migrations WHERE name = ? LIMIT 1',
+        [name],
+      )
+      if (applied.length) continue
+      const migration = await readFile(resolve(migrationsDirectory, name), 'utf8')
+      for (const statement of migration.split(';').map((part) => part.trim()).filter(Boolean)) {
+        await connection.query(statement)
+      }
+      await connection.execute('INSERT INTO schema_migrations (name) VALUES (?)', [name])
     }
   } finally {
     connection.release()

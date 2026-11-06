@@ -9,7 +9,7 @@ web
 ## Users
 
 - Diners in Peru who want to discover nearby restaurants, compare options, review menus and request a reservation.
-- Restaurant owners who use the demo portal to manage restaurant details, hours, available times and reservation policies.
+- Restaurant owners who manage restaurant hours, availability, pricing, and reservation requests through an authenticated portal.
 
 ## Product Purpose
 
@@ -25,12 +25,13 @@ The app is responsive and in Spanish. It uses Peruvian soles for prices. Diners 
 
 ## Capabilities and Constraints
 
-- Search and filter by restaurant, district, cuisine and dish; compare restaurants; view restaurant details; save favorites on the device; and submit demo reservation requests.
-- Discover nearby OpenStreetMap listings at 200 m, 500 m and 1 km. Free customers are limited to 200 m; active Pro customers may choose up to 1 km. OpenStreetMap may not provide complete restaurant details.
+- Search and filter by restaurant, district, cuisine and dish; compare restaurants; view restaurant details; save personal favorites; and request restaurant reservations. Reservations, reviews and favorites require a signed-in customer account.
+- Discover nearby OpenStreetMap listings at 200 m, 500 m and 1 km. Guests and Free customers are limited to 200 m; active Pro customers may choose 500 m or 1 km. Choosing a Pro radius explains the paid plan and links to upgrade or sign-in.
 - Customer accounts use a personal email and can select Free or Pro at S/ 100 per month. Restaurant accounts use a company domain and matching corporate email and require the S/ 120 monthly plan.
 - When the API, MySQL, SMTP and Mercado Pago are configured, account data, sessions, reservations, reviews and subscription state persist in MySQL. Paid access is activated only after a verified Mercado Pago webhook; incomplete setup must be reported rather than presented as a completed payment.
-- Reservation requests remain pending until the restaurant confirms them; a submitted request is not a confirmed booking.
-- Demo restaurant data, prices, reviews, schedules, distances and reservation availability are illustrative, not verified claims.
+- Active restaurant accounts can edit hours, available times, reservation policy, per-person pricing and listed dish prices, and can manage their pending and completed reservations.
+- Reservation requests remain pending until the restaurant confirms them; restaurants can later mark them completed. A submitted request is not a confirmed booking.
+- Restaurant data, prices, reviews, schedules, distances and availability remain illustrative until verified and maintained by the restaurant.
 
 ## Brand Commitments
 

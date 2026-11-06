@@ -1,7 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Check, MapPin, Search, SlidersHorizontal, Sparkles, Star, X } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowRight, Check, Heart, LockKeyhole, MapPin, Search, SlidersHorizontal, Sparkles, Star, X } from 'lucide-react'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { restaurantService, filterRestaurants } from '../features/restaurants/service'
 import {
   DEFAULT_NEARBY_RADIUS,
@@ -26,11 +26,12 @@ export function RestaurantsPage() {
     cuisine: params.get('cuisine') ?? '',
   })
   const [showFilters, setShowFilters] = useState(false)
+  const [radiusMessage, setRadiusMessage] = useState('')
   const userLocation = useUserLocation()
   const { session } = useOwnerAuth()
   const location = userLocation.location
-  const isDemo = import.meta.env.VITE_DEMO_MODE !== 'false'
-  const hasProRadius = isDemo || (session?.role === 'customer' && session.plan === 'pro' && session.planStatus === 'active')
+  const pageLocation = useLocation()
+  const hasProRadius = session?.role === 'customer' && session.plan === 'pro' && session.planStatus === 'active'
   const maximumRadius = hasProRadius ? 1000 : DEFAULT_NEARBY_RADIUS
 
   const requestedRadius = Number(params.get('radio'))
@@ -85,7 +86,13 @@ export function RestaurantsPage() {
   }
 
   function updateRadius(value: (typeof NEARBY_RADII)[number]) {
-    if (value > maximumRadius) return
+    if (value > maximumRadius) {
+      setRadiusMessage(session?.role === 'customer'
+        ? 'Los radios de 500 m y 1 km son parte de GastroRed Pro (S/ 100 al mes). Cambia tu plan para ampliar la búsqueda.'
+        : 'Los radios de 500 m y 1 km son parte de GastroRed Pro. Regístrate o inicia sesión y cambia a Pro para ampliar la búsqueda.')
+      return
+    }
+    setRadiusMessage('')
     const next = new URLSearchParams(params)
     if (value === DEFAULT_NEARBY_RADIUS) next.delete('radio')
     else next.set('radio', String(value))
@@ -168,7 +175,13 @@ export function RestaurantsPage() {
           >
             {!restaurant.image && <PhotoPlaceholder name={restaurant.name} />}
             <Link to={`/restaurantes/${restaurant.id}`} className="image-tag">{restaurant.cuisine.toUpperCase()}</Link>
-            <button className="image-favorite" aria-label={`Guardar ${restaurant.name}`} onClick={() => { const saved = JSON.parse(localStorage.getItem('mesa-favorites') ?? '[]') as string[]; localStorage.setItem('mesa-favorites', JSON.stringify(saved.includes(restaurant.id) ? saved.filter((id) => id !== restaurant.id) : [...saved, restaurant.id])) }}><span aria-hidden="true">♡</span></button>
+            {session?.role === 'customer'
+              ? <button className="image-favorite" type="button" aria-label={`Guardar ${restaurant.name} en favoritos`} onClick={() => {
+                const key = `mesa-favorites-${session.id}`
+                const saved = JSON.parse(localStorage.getItem(key) ?? '[]') as string[]
+                localStorage.setItem(key, JSON.stringify(saved.includes(restaurant.id) ? saved.filter((id) => id !== restaurant.id) : [...saved, restaurant.id]))
+              }}><Heart size={16} aria-hidden="true" /></button>
+              : <Link className="image-favorite" aria-label={`Inicia sesión para guardar ${restaurant.name}`} to="/login" state={{ from: pageLocation.pathname }}><Heart size={16} aria-hidden="true" /></Link>}
           </div>
           <div className="restaurant-card-body">
             <div className="card-kicker"><MapPin size={12} /> {restaurant.neighborhood} <span>·</span> {formatDistance(restaurant.distanceKm)}</div>
@@ -203,16 +216,21 @@ export function RestaurantsPage() {
               <button
                 key={value}
                 type="button"
-                className={radius === value ? 'active' : ''}
+                className={`${radius === value ? 'active' : ''}${value > maximumRadius ? ' radius-locked' : ''}`}
                 aria-pressed={radius === value}
-                disabled={value > maximumRadius}
+                aria-label={value > maximumRadius ? `${value < 1000 ? `${value} metros` : '1 kilómetro'}, requiere GastroRed Pro` : undefined}
                 onClick={() => updateRadius(value)}
-              >{value < 1000 ? `${value} m` : `${value / 1000} km`}</button>
+              >{value > maximumRadius && <LockKeyhole size={11} />}{value < 1000 ? `${value} m` : `${value / 1000} km`}</button>
             ))}
             <span className="radius-note">
-              {hasProRadius ? 'Radio disponible con tu plan.' : <>Free incluye 200 m · <Link to="/perfil">Ampliar a 1 km con Pro</Link></>}
+              {hasProRadius ? 'Radio disponible con tu plan.' : <>Free incluye 200 m · <Link to={session?.role === 'customer' ? '/perfil' : '/login?mode=register'}>{session?.role === 'customer' ? 'Cambiar a Pro · S/ 100/mes' : 'Regístrate para ampliar con Pro'}</Link></>}
             </span>
           </div>
+          {radiusMessage && <div className="radius-upgrade-prompt" role="status">
+            <div><strong>Amplía tu búsqueda con Pro</strong><span>Accede hasta 1 km por S/ 100 al mes.</span></div>
+            <Link className="button button-primary" to={session?.role === 'customer' ? '/perfil' : '/login?mode=register'}>{session?.role === 'customer' ? 'Ver opciones Pro' : 'Iniciar sesión o registrarme'} <ArrowRight size={14} /></Link>
+            <button type="button" className="radius-prompt-dismiss" aria-label="Cerrar aviso" onClick={() => setRadiusMessage('')}><X size={15} /></button>
+          </div>}
 
           {!nearbyQuery.isLoading && !nearbyQuery.isError && nearbyPlaces.length > 0 && (
             <Suspense fallback={<div className="nearby-map nearby-map-loading" role="status">Cargando mapa…</div>}>
@@ -227,7 +245,7 @@ export function RestaurantsPage() {
               <strong>No hay restaurantes registrados a {radiusUsed} m de {placeLabel}.</strong>
               <p>OpenStreetMap todavía no tiene locales con nombre en este radio. Prueba con un radio mayor o explora la guía completa.</p>
               <div className="state-actions">
-                {NEARBY_RADII.filter((value) => value > radius && value <= maximumRadius).map((value) => (
+                {NEARBY_RADII.filter((value) => value > radius).map((value) => (
                   <button key={value} className="button button-primary" type="button" onClick={() => updateRadius(value)}>
                     Ampliar a {value < 1000 ? `${value} m` : `${value / 1000} km`} <ArrowRight size={15} />
                   </button>

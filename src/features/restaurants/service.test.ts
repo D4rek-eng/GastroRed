@@ -55,8 +55,15 @@ describe('restaurant filtering', () => {
       hours: 'Mié–dom · 14:00–23:00',
       availableTimes: ['14:00', '20:00'],
       reservationPolicy: 'Reserva previa',
+      pricePerPerson: 190,
+      menuHighlights: restaurants.find((restaurant) => restaurant.id === 'central')!.menuHighlights.map((dish, index) => ({
+        ...dish,
+        price: index === 0 ? 99 : dish.price,
+      })),
     })
     expect(updated.hours).toBe('Mié–dom · 14:00–23:00')
+    expect(updated.pricePerPerson).toBe(190)
+    expect((await restaurantService.getById('central')).menuHighlights[0].price).toBe(99)
     expect((await restaurantService.getById('central')).availableTimes).toEqual(['14:00', '20:00'])
     expect((await restaurantService.list({ ...defaults, query: 'Mérito' }))[0].hours).toBe('Mié–dom · 14:00–23:00')
   })

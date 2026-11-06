@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Clock3, Save, Store } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Clock3, Save, Store } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { restaurantService } from '../features/restaurants/service'
 import { useOwnerAuth } from '../features/auth/useOwnerAuth'
@@ -9,9 +9,16 @@ import type { Restaurant } from '../types'
 export function OwnerPortalPage() {
   const queryClient = useQueryClient()
   const { session, signOut } = useOwnerAuth()
+  const isDemo = import.meta.env.VITE_DEMO_MODE !== 'false'
+  const [section, setSection] = useState<'settings' | 'pending' | 'completed'>('settings')
   const { data: restaurants = [], isLoading, isError } = useQuery({
     queryKey: ['owner-restaurants', session?.restaurantIds],
     queryFn: ({ signal }) => restaurantService.listOwned(session?.restaurantIds ?? [], signal),
+  })
+  const reservationsQuery = useQuery({
+    queryKey: ['owner-reservations', session?.id],
+    queryFn: ({ signal }) => restaurantService.listOwnerReservations(signal),
+    enabled: !isDemo && session?.role === 'restaurant',
   })
   const [selectedId, setSelectedId] = useState('')
   const restaurant = restaurants.find((item) => item.id === selectedId) ?? restaurants[0]
@@ -20,6 +27,8 @@ export function OwnerPortalPage() {
     hours: string
     availableTimes: string
     reservationPolicy: string
+    pricePerPerson: number
+    menuHighlights: Restaurant['menuHighlights']
   } | null>(null)
   const [message, setMessage] = useState('')
   const editorValues = restaurant
@@ -30,13 +39,15 @@ export function OwnerPortalPage() {
           hours: restaurant.hours,
           availableTimes: restaurant.availableTimes.join(', '),
           reservationPolicy: restaurant.reservationPolicy,
+          pricePerPerson: restaurant.pricePerPerson,
+          menuHighlights: restaurant.menuHighlights,
         }
     : null
 
   const mutation = useMutation({
     mutationFn: ({ id, settings }: {
       id: string
-      settings: Pick<Restaurant, 'hours' | 'availableTimes' | 'reservationPolicy'>
+      settings: Pick<Restaurant, 'hours' | 'availableTimes' | 'reservationPolicy' | 'pricePerPerson' | 'menuHighlights'>
     }) => restaurantService.updateOwnerSettings(id, settings),
     onSuccess: (updated) => {
       queryClient.setQueryData<Restaurant>(['restaurant', updated.id], updated)
@@ -47,6 +58,15 @@ export function OwnerPortalPage() {
         : 'Cambios guardados.')
     },
     onError: (error) => setMessage(error instanceof Error ? error.message : 'No se pudieron guardar los cambios.'),
+  })
+  const reservationMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'confirmed' | 'completed' }) =>
+      restaurantService.updateReservationStatus(id, status),
+    onSuccess: (updated) => {
+      void queryClient.invalidateQueries({ queryKey: ['owner-reservations', session?.id] })
+      setMessage(updated.status === 'completed' ? 'Reserva marcada como finalizada.' : 'Reserva confirmada.')
+    },
+    onError: (error) => setMessage(error instanceof Error ? error.message : 'No se pudo actualizar la reserva.'),
   })
 
   function saveSettings(event: FormEvent<HTMLFormElement>) {
@@ -67,6 +87,8 @@ export function OwnerPortalPage() {
         hours: editorValues.hours.trim(),
         availableTimes: times,
         reservationPolicy: editorValues.reservationPolicy.trim(),
+        pricePerPerson: editorValues.pricePerPerson,
+        menuHighlights: editorValues.menuHighlights,
       },
     })
   }
@@ -82,12 +104,12 @@ export function OwnerPortalPage() {
 
   return (
     <div className="page-container owner-page">
-      <div className="breadcrumb"><Link to="/inicio">Inicio</Link><span>/</span><span>Acceso restaurantes</span></div>
+      <div className="breadcrumb"><Link to="/inicio">Inicio</Link><span>/</span><span>Panel de administración</span></div>
       <section className="owner-intro">
         <span className="owner-icon"><Store size={21} /></span>
         <span className="eyebrow">PORTAL PARA RESTAURANTES</span>
         <h1>Tu restaurante,<br /><em>a tu manera.</em></h1>
-        <p>Actualiza horarios, turnos disponibles y condiciones de reserva que se muestran en tu ficha.</p>
+        <p>Administra horarios, disponibilidad, precios y las solicitudes de reserva de tu local.</p>
         <span className="owner-demo-note">{import.meta.env.VITE_DEMO_MODE !== 'false'
           ? 'Panel demo · Los cambios se guardan en este navegador.'
           : `Cuenta ${session?.domain ?? session?.email ?? ''} · Plan Restaurante ${session?.planStatus === 'active' ? 'activo' : 'pendiente de pago'}.`}</span>
@@ -95,15 +117,25 @@ export function OwnerPortalPage() {
 
       <section className="owner-editor">
         <div className="owner-editor-heading">
-          <div><span className="eyebrow">GESTIÓN DEL LOCAL</span><h2>Horarios y disponibilidad</h2></div>
+          <div><span className="eyebrow">PANEL DE ADMINISTRACIÓN</span><h2>{section === 'settings' ? 'Tu restaurante' : section === 'pending' ? 'Reservas pendientes' : 'Reservas finalizadas'}</h2></div>
           <div className="owner-editor-actions"><span>{session?.email}</span><button className="button button-outline" type="button" onClick={() => void leavePortal()}>Cerrar sesión</button><Clock3 size={20} /></div>
         </div>
+        <nav className="owner-dashboard-tabs" aria-label="Secciones del panel">
+          <button type="button" className={section === 'settings' ? 'active' : ''} aria-current={section === 'settings' ? 'page' : undefined} onClick={() => { setSection('settings'); setMessage('') }}><Store size={15} /> Datos del local</button>
+          <button type="button" className={section === 'pending' ? 'active' : ''} aria-current={section === 'pending' ? 'page' : undefined} onClick={() => { setSection('pending'); setMessage('') }}><CalendarDays size={15} /> Pendientes</button>
+          <button type="button" className={section === 'completed' ? 'active' : ''} aria-current={section === 'completed' ? 'page' : undefined} onClick={() => { setSection('completed'); setMessage('') }}><Check size={15} /> Finalizadas</button>
+        </nav>
+        {session?.restaurantIds.length === 0 && !isDemo && (
+          <div className="demo-note warning-note owner-link-warning" role="status">
+            Tu cuenta está activa, pero todavía no está vinculada a una ficha de restaurante. Contacta al equipo de GastroRed para validar y conectar tu local; el panel se habilitará al completar la vinculación.
+          </div>
+        )}
         {isLoading && <p className="reviews-state">Cargando restaurantes…</p>}
         {isError && <p className="reviews-state reviews-error" role="alert">No se pudieron cargar los restaurantes. Recarga la página para intentar de nuevo.</p>}
-        {!isLoading && !isError && restaurants.length === 0 && <p className="reviews-state">{import.meta.env.VITE_DEMO_MODE !== 'false'
+        {section === 'settings' && !isLoading && !isError && restaurants.length === 0 && <p className="reviews-state">{import.meta.env.VITE_DEMO_MODE !== 'false'
           ? 'No hay restaurantes para administrar.'
           : 'Tu cuenta de restaurante está activa. La ficha de tu local debe vincularse a la guía antes de editar horarios o reservas.'}</p>}
-        {!isLoading && !isError && restaurant && editorValues && (
+        {section === 'settings' && !isLoading && !isError && restaurant && editorValues && (
           <form className="owner-form" onSubmit={saveSettings}>
             <label className="contact-field">Restaurante
               <select value={restaurant.id} onChange={(event) => { setSelectedId(event.target.value); setMessage('') }}>
@@ -120,11 +152,55 @@ export function OwnerPortalPage() {
             <label className="contact-field">Política de reservas
               <textarea value={editorValues.reservationPolicy} onChange={(event) => setDraft({ ...editorValues, reservationPolicy: event.target.value })} maxLength={240} rows={3} placeholder="Indica condiciones importantes para reservar" />
             </label>
+            <label className="contact-field">Precio promedio por persona (S/)
+              <input type="number" min="0" max="5000" step="0.5" value={editorValues.pricePerPerson} onChange={(event) => setDraft({ ...editorValues, pricePerPerson: Number(event.target.value) })} required />
+            </label>
+            {editorValues.menuHighlights.length > 0 && <fieldset className="owner-menu-prices">
+              <legend>Precios de platos destacados</legend>
+              {editorValues.menuHighlights.map((dish, index) => <label className="contact-field" key={`${restaurant.id}-${dish.name}`}>{dish.name} · S/
+                <input type="number" min="0" max="5000" step="0.5" value={dish.price} onChange={(event) => setDraft({
+                  ...editorValues,
+                  menuHighlights: editorValues.menuHighlights.map((item, itemIndex) => itemIndex === index
+                    ? { ...item, price: Number(event.target.value) }
+                    : item),
+                })} required />
+              </label>)}
+            </fieldset>}
             <button className="button button-primary" type="submit" disabled={mutation.isPending}>
               <Save size={15} /> {mutation.isPending ? 'Guardando…' : 'Guardar cambios'}
             </button>
             {message && <p className={`owner-message${mutation.isError || message.startsWith('Escribe') || message.startsWith('Añade') ? ' error' : ''}`} role="status">{message}</p>}
           </form>
+        )}
+        {section !== 'settings' && (
+          <>
+            {isDemo && <p className="demo-note warning-note">Las reservas reales estarán disponibles cuando la API y MySQL estén conectados.</p>}
+            {!isDemo && reservationsQuery.isLoading && <p className="reviews-state" role="status">Cargando reservas…</p>}
+            {!isDemo && reservationsQuery.isError && <div className="state-card" role="alert"><strong>No se pudieron cargar las reservas.</strong><p>Revisa la conexión e inténtalo nuevamente.</p><button className="button button-outline" type="button" onClick={() => void reservationsQuery.refetch()}>Intentar de nuevo</button></div>}
+            {!isDemo && !reservationsQuery.isLoading && !reservationsQuery.isError && (() => {
+              const reservations = reservationsQuery.data ?? []
+              const visible = reservations.filter((item) => section === 'completed'
+                ? item.status === 'completed'
+                : item.status === 'pending' || item.status === 'confirmed')
+              return session?.restaurantIds.length === 0
+                ? <div className="state-card"><strong>Vincula primero tu ficha de restaurante.</strong><p>Las reservas aparecerán cuando el equipo de GastroRed conecte el local con esta cuenta.</p></div>
+                : visible.length ? <div className="owner-reservation-list">
+                {visible.map((reservation) => <article className="owner-reservation" key={reservation.id}>
+                  <div className="owner-reservation-date"><strong>{reservation.time}</strong><span>{reservation.date}</span></div>
+                  <div className="owner-reservation-details">
+                    <strong>{reservation.name} · {reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}</strong>
+                    <span>{reservation.restaurantName} · {reservation.email}</span>
+                    <span className={`reservation-status ${reservation.status}`}>{reservation.status === 'completed' ? 'Finalizada' : reservation.status === 'confirmed' ? 'Confirmada' : 'Pendiente'}</span>
+                  </div>
+                  {section === 'pending' && <div className="owner-reservation-actions">
+                    {reservation.status === 'pending' && <button className="button button-outline" type="button" disabled={reservationMutation.isPending} onClick={() => reservationMutation.mutate({ id: reservation.id, status: 'confirmed' })}>Confirmar</button>}
+                    <button className="button button-primary" type="button" disabled={reservationMutation.isPending} onClick={() => reservationMutation.mutate({ id: reservation.id, status: 'completed' })}>Marcar finalizada</button>
+                  </div>}
+                </article>)}
+              </div> : <div className="empty-reservations"><span className="empty-icon">{section === 'pending' ? <CalendarDays size={23} /> : <Check size={23} />}</span><h2>{section === 'pending' ? 'No hay reservas pendientes.' : 'Aún no hay reservas finalizadas.'}</h2><p>{section === 'pending' ? 'Las nuevas solicitudes de clientes aparecerán aquí.' : 'Cuando finalices una reserva, quedará archivada en esta sección.'}</p></div>
+            })()}
+            {message && <p className={`owner-message${reservationMutation.isError ? ' error' : ''}`} role={reservationMutation.isError ? 'alert' : 'status'}>{message}</p>}
+          </>
         )}
         <Link className="text-link owner-view-link" to="/restaurantes">Ver fichas de restaurantes <ArrowRight size={15} /></Link>
       </section>
