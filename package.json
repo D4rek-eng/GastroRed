@@ -12,6 +12,8 @@
     "dev:api": "tsx watch server/index.ts",
     "start:api": "tsx server/index.ts",
     "db:migrate": "tsx server/migrate.ts",
+    "db:seed-demo": "tsx server/seed-demo.ts",
+    "demo:setup": "npm run db:migrate && npm run db:seed-demo",
     "check:server": "tsc -p tsconfig.server.json --noEmit"
   },
   "dependencies": {

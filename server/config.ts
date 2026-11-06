@@ -20,6 +20,7 @@ const environment = z.object({
   MERCADOPAGO_ACCESS_TOKEN: z.string().default(''),
   MERCADOPAGO_WEBHOOK_SECRET: z.string().default(''),
   MERCADOPAGO_WEBHOOK_URL: optionalUrl.default(''),
+  DEMO_PAYMENTS_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 }).parse(process.env)
 
 if (
@@ -27,6 +28,10 @@ if (
   (environment.SESSION_SECRET.length < 32 || environment.SESSION_SECRET === 'development-only-session-secret-change-me')
 ) {
   throw new Error('Configura un SESSION_SECRET aleatorio de al menos 32 caracteres en producción.')
+}
+
+if (environment.NODE_ENV === 'production' && environment.DEMO_PAYMENTS_ENABLED) {
+  throw new Error('DEMO_PAYMENTS_ENABLED no puede activarse en producción.')
 }
 
 export const config = {

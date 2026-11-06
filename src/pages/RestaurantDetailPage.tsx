@@ -18,7 +18,12 @@ export function RestaurantDetailPage() {
   const location = useLocation()
   const queryClient = useQueryClient()
   const { session, isLoading: isSessionLoading } = useOwnerAuth()
-  const { data: restaurant, isLoading, isError } = useQuery({ queryKey: ['restaurant', id], queryFn: ({ signal }) => restaurantService.getById(id, signal) })
+  const [date, setDate] = useState(todayLocal)
+  const { data: restaurant, isLoading, isFetching, isError } = useQuery({
+    queryKey: ['restaurant', id, date],
+    queryFn: ({ signal }) => restaurantService.getById(id, signal, isDemo ? undefined : date),
+    placeholderData: (previous) => previous,
+  })
   const { data: reviews = [], isLoading: reviewsLoading, isError: reviewsError, refetch: refetchReviews } = useQuery({
     queryKey: ['restaurant-reviews', id],
     queryFn: ({ signal }) => restaurantService.listReviews(id, signal),
@@ -31,7 +36,6 @@ export function RestaurantDetailPage() {
   const [reviewFilter, setReviewFilter] = useState(0)
   const [reviewMessage, setReviewMessage] = useState('')
   const [guests, setGuests] = useState(2)
-  const [date, setDate] = useState(todayLocal)
   const [message, setMessage] = useState('')
   const favoriteAccountId = session?.id ?? session?.email ?? ''
   const savedFavorites = session?.role === 'customer'
@@ -55,6 +59,7 @@ export function RestaurantDetailPage() {
     mutationFn: (reservation: ReservationInput) => restaurantService.createReservation(reservation),
     onSuccess: (reservation) => {
       queryClient.setQueryData<Reservation[]>(['reservations', session?.id], (previous = []) => [...previous, reservation])
+      void queryClient.invalidateQueries({ queryKey: ['restaurant', id, date] })
       setMessage('Solicitud recibida. La mesa aún debe ser confirmada por el restaurante.')
     },
     onError: (error) => setMessage(error instanceof Error ? error.message : 'No se pudo enviar la solicitud.'),
@@ -290,9 +295,27 @@ export function RestaurantDetailPage() {
             : session?.role === 'customer' ? (
           <form className="booking-form" onSubmit={(event) => { event.preventDefault(); submitReservation() }}>
             <span className="eyebrow"><span className="availability-dot" /> RESERVA TU MESA</span><h2>¿Cuándo <em>nos vemos?</em></h2>
-            <label className="booking-field"><span><CalendarDays size={15} /> Fecha</span><input type="date" value={date} min={todayLocal} onChange={(event) => setDate(event.target.value)} /></label>
+            <label className="booking-field"><span><CalendarDays size={15} /> Fecha</span><input type="date" value={date} min={todayLocal} onChange={(event) => { setDate(event.target.value); setSelectedTime(''); setMessage('') }} /></label>
             <div className="booking-field"><span><Users size={15} /> Comensales</span><div className="guest-stepper"><button type="button" aria-label="Quitar comensales" onClick={() => setGuests((count) => Math.max(1, count - 1))}><Minus size={14} /></button><strong>{guests} personas</strong><button type="button" aria-label="Añadir comensales" onClick={() => setGuests((count) => Math.min(12, count + 1))}><Plus size={14} /></button></div></div>
-            <div className="booking-times"><span><Clock3 size={15} /> {isDemo ? 'Horarios de demostración' : 'Horarios indicados por el restaurante'}</span>{restaurant.availableTimes.length ? <div>{restaurant.availableTimes.map((time) => <button type="button" key={time} className={`time-chip${selectedTime === time ? ' active' : ''}`} aria-pressed={selectedTime === time} onClick={() => { setSelectedTime(time); setMessage('') }}>{time}</button>)}</div> : <p className="booking-no-times">Este restaurante aún no publica horarios de reserva. Consulta directamente con el local.</p>}</div>
+            <div className="booking-times" aria-busy={isFetching}>
+              <span><Clock3 size={15} /> {isDemo ? 'Mesas por turno · demostración' : 'Mesas disponibles por turno'}</span>
+              {restaurant.availableTimes.length ? <div className="booking-time-options">{restaurant.availableTimes.map((time) => {
+                const tableCount = restaurant.remainingTables?.[time] ?? restaurant.tableAvailability?.[time] ?? 0
+                const soldOut = tableCount === 0
+                return <button
+                  type="button"
+                  key={time}
+                  className={`time-chip${selectedTime === time ? ' active' : ''}${soldOut ? ' unavailable' : ''}`}
+                  aria-pressed={selectedTime === time}
+                  aria-label={`${time}, ${soldOut ? 'sin mesas disponibles' : `${tableCount} ${tableCount === 1 ? 'mesa disponible' : 'mesas disponibles'}`}`}
+                  disabled={soldOut || isFetching}
+                  onClick={() => { setSelectedTime(time); setMessage('') }}
+                >
+                  <strong>{time}</strong><small>{soldOut ? 'Completo' : `${tableCount} ${tableCount === 1 ? 'mesa' : 'mesas'}`}</small>
+                </button>
+              })}</div> : <p className="booking-no-times">Este restaurante aún no publica horarios de reserva. Consulta directamente con el local.</p>}
+              {!isDemo && isFetching && <small className="booking-availability-loading">Actualizando mesas para esta fecha…</small>}
+            </div>
             {selectedTime && <div className="availability-callout"><Check size={15} /> {isDemo ? 'Horario de ejemplo.' : 'Horario seleccionado.'} La reserva quedará pendiente hasta confirmación del restaurante.</div>}
             <p className="booking-account">Solicitud a nombre de <strong>{session.name}</strong> · {session.email}</p>
             <button className="button button-primary booking-submit" type="submit" disabled={mutation.isPending || !restaurant.availableTimes.length}>{mutation.isPending ? 'Enviando solicitud…' : 'Solicitar reserva'} <ArrowRight size={16} /></button>

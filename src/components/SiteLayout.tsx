@@ -20,6 +20,7 @@ export function SiteLayout() {
   const menuOpen = openPath === location.pathname
   const userLocation = useUserLocation()
   const { session } = useOwnerAuth()
+  const isRestaurantAccount = Boolean(session && (session.role === 'restaurant' || session.restaurantIds.length > 0))
   const closeMenu = () => setOpenPath(null)
 
   useEffect(() => {
@@ -91,7 +92,7 @@ export function SiteLayout() {
                   ? <><UserRound size={14} /> Mi cuenta</>
                   : <><LogIn size={14} /> Login</>}
             </Link>
-            <Link className="button button-primary nav-cta" to="/restaurantes" onClick={closeMenu}>Reserva tu mesa <ArrowRight size={15} /></Link>
+            {!isRestaurantAccount && <Link className="button button-primary nav-cta" to="/restaurantes" onClick={closeMenu}>Reserva tu mesa <ArrowRight size={15} /></Link>}
           </nav>
         </div>
       </header>

@@ -41,4 +41,30 @@ describe('application navigation', () => {
     expect(await screen.findByText('Guía de restaurantes')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Abrir menú' })).toHaveAttribute('aria-expanded', 'false')
   })
+
+  it('hides the reservation call-to-action for a restaurant account', async () => {
+    localStorage.setItem('mesa-demo-owner-session', JSON.stringify({
+      email: 'propietario@mesaysabor.demo',
+      role: 'restaurant',
+      restaurantIds: ['central'],
+    }))
+
+    render(
+      <MemoryRouter initialEntries={['/inicio']}>
+        <OwnerAuthProvider>
+          <LocationProvider>
+            <Routes>
+              <Route element={<SiteLayout />}>
+                <Route path="/inicio" element={<p>Inicio de GastroRed</p>} />
+              </Route>
+            </Routes>
+          </LocationProvider>
+        </OwnerAuthProvider>
+      </MemoryRouter>,
+    )
+
+    const navigation = screen.getByRole('navigation', { name: 'Navegación principal' })
+    expect(await screen.findByRole('link', { name: 'Portal restaurantes' })).toBeInTheDocument()
+    expect(navigation.querySelector('.nav-cta')).not.toBeInTheDocument()
+  })
 })

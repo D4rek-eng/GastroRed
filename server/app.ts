@@ -105,6 +105,7 @@ const reviewSchema = z.object({
 const restaurantSettingsSchema = z.object({
   hours: z.string().trim().min(1).max(120),
   availableTimes: z.array(z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)).min(1).max(30),
+  tableAvailability: z.record(z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/), z.number().int().min(0).max(200)),
   reservationPolicy: z.string().trim().max(240),
   pricePerPerson: z.number().min(0).max(5000),
   menuHighlights: z.array(z.object({
@@ -118,24 +119,40 @@ const restaurantSettingsSchema = z.object({
 const publicSettingsSchema = z.object({
   hours: z.string(),
   availableTimes: z.array(z.string()),
+  tableAvailability: restaurantSettingsSchema.shape.tableAvailability,
   reservationPolicy: z.string(),
   pricePerPerson: z.number(),
   menuHighlights: restaurantSettingsSchema.shape.menuHighlights,
 })
 
 function settingsFromRow(row: RowDataPacket) {
+  const parsedTimes = row.availableTimes
+    ? typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes) : row.availableTimes
+    : undefined
   const parsedMenu = row.menuHighlights
     ? typeof row.menuHighlights === 'string' ? JSON.parse(row.menuHighlights) : row.menuHighlights
     : undefined
+  const parsedTables = row.tableAvailability
+    ? typeof row.tableAvailability === 'string' ? JSON.parse(row.tableAvailability) : row.tableAvailability
+    : undefined
   const parsed = publicSettingsSchema.partial().safeParse({
     ...(row.hours !== null && row.hours !== undefined ? { hours: row.hours } : {}),
-    ...(row.availableTimes !== null && row.availableTimes !== undefined ? { availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes) : row.availableTimes } : {}),
+    ...(parsedTimes !== undefined ? { availableTimes: parsedTimes } : {}),
+    ...(parsedTables !== undefined ? { tableAvailability: parsedTables } : {}),
     ...(row.reservationPolicy !== null && row.reservationPolicy !== undefined ? { reservationPolicy: row.reservationPolicy } : {}),
     ...(row.pricePerPerson !== null && row.pricePerPerson !== undefined ? { pricePerPerson: Number(row.pricePerPerson) } : {}),
     ...(parsedMenu ? { menuHighlights: parsedMenu } : {}),
   })
   if (!parsed.success) throw new Error('Restaurant settings in the database are invalid.')
-  return parsed.data
+  if (!parsed.data.availableTimes) return parsed.data
+  const tableAvailability = parsed.data.tableAvailability ?? {}
+  return {
+    ...parsed.data,
+    tableAvailability: Object.fromEntries(parsed.data.availableTimes.map((time) => [
+      time,
+      tableAvailability[time] ?? 8,
+    ])),
+  }
 }
 
 type UserRow = RowDataPacket & {
@@ -514,6 +531,17 @@ app.post('/api/v1/billing/checkout', requireAuth, async (request, response) => {
     throw new HttpError(409, 'Tu suscripción ya está activa.')
   }
   if (!account.emailVerifiedAt) throw new HttpError(403, 'Verifica tu correo antes de pagar.')
+  if (config.DEMO_PAYMENTS_ENABLED) {
+    await pool.execute(
+      'UPDATE users SET plan = ?, plan_status = ? WHERE id = ?',
+      [plan, 'active', account.id],
+    )
+    response.json({
+      url: new URL(account.role === 'restaurant' ? 'propietario' : 'perfil', config.FRONTEND_URL).toString(),
+      simulated: true,
+    })
+    return
+  }
   if (!config.MERCADOPAGO_ACCESS_TOKEN || !config.MERCADOPAGO_WEBHOOK_URL) {
     throw new HttpError(503, 'Mercado Pago no está configurado todavía. Contacta al administrador.')
   }
@@ -735,31 +763,51 @@ app.post('/api/v1/reservations', requireAuth, requireRole('customer'), async (re
     [parsed.data.restaurantId, 'catalog'],
   )
   if (!restaurants.length) throw new HttpError(404, 'Este restaurante no recibe reservas en GastroRed.')
-  const [settings] = await pool.execute<RowDataPacket[]>(
-    'SELECT available_times AS availableTimes FROM restaurant_settings WHERE restaurant_id = ? LIMIT 1',
-    [parsed.data.restaurantId],
-  )
-  const availableTimes = settings[0]?.availableTimes
-    ? typeof settings[0].availableTimes === 'string' ? JSON.parse(settings[0].availableTimes) as string[] : settings[0].availableTimes as string[]
-    : []
-  if (!availableTimes.length) throw new HttpError(409, 'El restaurante todavía no publica disponibilidad para reservas.')
-  if (!availableTimes.includes(parsed.data.time)) throw new HttpError(409, 'Ese horario ya no está disponible. Elige otro turno.')
   const id = randomUUID()
-  await pool.execute(
-    `INSERT INTO reservations
-      (id, user_id, restaurant_id, reservation_date, reservation_time, guests, customer_name, customer_email)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      request.account!.id,
-      parsed.data.restaurantId,
-      parsed.data.date,
-      `${parsed.data.time}:00`,
-      parsed.data.guests,
-      request.account!.name,
-      request.account!.email,
-    ],
-  )
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const [settings] = await connection.execute<RowDataPacket[]>(
+      `SELECT available_times AS availableTimes, table_availability AS tableAvailability
+       FROM restaurant_settings WHERE restaurant_id = ? LIMIT 1 FOR UPDATE`,
+      [parsed.data.restaurantId],
+    )
+    const availability = settings[0] ? settingsFromRow(settings[0]) : {}
+    const availableTimes = availability.availableTimes ?? []
+    if (!availableTimes.length) throw new HttpError(409, 'El restaurante todavía no publica disponibilidad para reservas.')
+    if (!availableTimes.includes(parsed.data.time)) throw new HttpError(409, 'Ese horario ya no está disponible. Elige otro turno.')
+    const tableLimit = availability.tableAvailability?.[parsed.data.time] ?? 0
+    const [bookedTables] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS count FROM reservations
+       WHERE restaurant_id = ? AND reservation_date = ? AND reservation_time = ?
+         AND status IN ('pending', 'confirmed')`,
+      [parsed.data.restaurantId, parsed.data.date, `${parsed.data.time}:00`],
+    )
+    if (Number(bookedTables[0]?.count ?? 0) >= tableLimit) {
+      throw new HttpError(409, 'Este turno ya no tiene mesas disponibles. Elige otro horario.')
+    }
+    await connection.execute(
+      `INSERT INTO reservations
+        (id, user_id, restaurant_id, reservation_date, reservation_time, guests, customer_name, customer_email)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        request.account!.id,
+        parsed.data.restaurantId,
+        parsed.data.date,
+        `${parsed.data.time}:00`,
+        parsed.data.guests,
+        request.account!.name,
+        request.account!.email,
+      ],
+    )
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
   response.status(201).json({
     ...parsed.data,
     id,
@@ -774,6 +822,7 @@ app.post('/api/v1/reservations', requireAuth, requireRole('customer'), async (re
 app.get('/api/v1/restaurants/settings', async (_request, response) => {
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT restaurant_id AS id, hours, available_times AS availableTimes,
+            table_availability AS tableAvailability,
             reservation_policy AS reservationPolicy, price_per_person AS pricePerPerson,
             menu_highlights AS menuHighlights
      FROM restaurant_settings`,
@@ -783,8 +832,13 @@ app.get('/api/v1/restaurants/settings', async (_request, response) => {
 
 app.get('/api/v1/restaurants/:id', async (request, response) => {
   const restaurantId = parseRestaurantId(request.params.id)
+  const dateInput = request.query.date === undefined
+    ? undefined
+    : z.iso.date().safeParse(request.query.date)
+  if (dateInput && !dateInput.success) throw new HttpError(400, 'La fecha para consultar disponibilidad no es válida.')
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT r.id, s.hours, s.available_times AS availableTimes,
+            s.table_availability AS tableAvailability,
             s.reservation_policy AS reservationPolicy, s.price_per_person AS pricePerPerson,
             s.menu_highlights AS menuHighlights
      FROM restaurants r LEFT JOIN restaurant_settings s ON s.restaurant_id = r.id
@@ -792,7 +846,24 @@ app.get('/api/v1/restaurants/:id', async (request, response) => {
     [restaurantId],
   )
   if (!rows.length) throw new HttpError(404, 'No encontramos ese restaurante.')
-  response.json({ id: restaurantId, ...settingsFromRow(rows[0]) })
+  const settings = settingsFromRow(rows[0])
+  let remainingTables: Record<string, number> | undefined
+  if (dateInput?.success && settings.availableTimes) {
+    const [bookedRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT TIME_FORMAT(reservation_time, '%H:%i') AS time, COUNT(*) AS count
+       FROM reservations
+       WHERE restaurant_id = ? AND reservation_date = ?
+         AND status IN ('pending', 'confirmed')
+       GROUP BY reservation_time`,
+      [restaurantId, dateInput.data],
+    )
+    const bookedByTime = new Map(bookedRows.map((row) => [row.time as string, Number(row.count)]))
+    remainingTables = Object.fromEntries(settings.availableTimes.map((time) => [
+      time,
+      Math.max(0, (settings.tableAvailability?.[time] ?? 0) - (bookedByTime.get(time) ?? 0)),
+    ]))
+  }
+  response.json({ id: restaurantId, ...settings, ...(remainingTables ? { remainingTables } : {}) })
 })
 
 app.get('/api/v1/restaurants/:id/reviews', async (request, response) => {
@@ -851,6 +922,7 @@ app.post('/api/v1/restaurants/:id/reviews', requireAuth, requireRole('customer')
 app.get('/api/v1/owner/restaurants', requireAuth, requireRole('restaurant'), requireActiveRestaurant, async (request, response) => {
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT r.id, s.hours, s.available_times AS availableTimes,
+            s.table_availability AS tableAvailability,
             s.reservation_policy AS reservationPolicy, s.price_per_person AS pricePerPerson,
             s.menu_highlights AS menuHighlights
      FROM restaurant_accounts ra
@@ -865,6 +937,9 @@ app.get('/api/v1/owner/restaurants', requireAuth, requireRole('restaurant'), req
 app.patch('/api/v1/owner/restaurants/:id', requireAuth, requireRole('restaurant'), requireActiveRestaurant, async (request, response) => {
   const input = restaurantSettingsSchema.safeParse(request.body)
   if (!input.success) throw new HttpError(400, 'Revisa los horarios y la política de reservas.')
+  if (input.data.availableTimes.some((time) => !Object.hasOwn(input.data.tableAvailability, time))) {
+    throw new HttpError(400, 'Define cuántas mesas estarán disponibles en cada turno.')
+  }
   const restaurantId = parseRestaurantId(request.params.id)
   const [owned] = await pool.execute<RowDataPacket[]>(
     'SELECT restaurant_id FROM restaurant_accounts WHERE user_id = ? AND restaurant_id = ? LIMIT 1',
@@ -874,15 +949,20 @@ app.patch('/api/v1/owner/restaurants/:id', requireAuth, requireRole('restaurant'
   try {
     await pool.execute(
       `INSERT INTO restaurant_settings
-         (restaurant_id, hours, available_times, reservation_policy, price_per_person, menu_highlights)
-       VALUES (?, ?, ?, ?, ?, ?)
+         (restaurant_id, hours, available_times, table_availability, reservation_policy, price_per_person, menu_highlights)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE hours = VALUES(hours), available_times = VALUES(available_times),
+         table_availability = VALUES(table_availability),
          reservation_policy = VALUES(reservation_policy), price_per_person = VALUES(price_per_person),
          menu_highlights = VALUES(menu_highlights)`,
       [
         restaurantId,
         input.data.hours,
         JSON.stringify(input.data.availableTimes),
+        JSON.stringify(Object.fromEntries(input.data.availableTimes.map((time) => [
+          time,
+          input.data.tableAvailability[time] ?? 0,
+        ]))),
         input.data.reservationPolicy,
         input.data.pricePerPerson,
         JSON.stringify(input.data.menuHighlights),

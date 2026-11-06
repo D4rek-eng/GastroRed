@@ -21,23 +21,28 @@ Copia `.env.example` como `.env.local` para el frontend y `.env.server.example` 
 | `VITE_DEMO_MODE` | `true` activa datos y acciones de demostración. El valor por defecto también es demo. |
 | `VITE_API_BASE_URL` | URL base de la API. Vacía usa el mismo origen; Vite reenvía `/api` a `localhost:3001`. |
 
-Para habilitar cuentas y persistencia local, instala MySQL 8 y configura `.env.server`:
+Para habilitar cuentas y persistencia local, instala MySQL 8 o MariaDB y configura `.env.server`. Crea la base y el usuario usando una cuenta administrativa local:
 
 ```sql
 CREATE DATABASE gastrored CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'gastrored'@'localhost' IDENTIFIED BY 'elige-una-clave-local';
+CREATE USER 'gastrored'@'127.0.0.1' IDENTIFIED BY 'elige-una-clave-local';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES
-  ON gastrored.* TO 'gastrored'@'localhost';
+  ON gastrored.* TO 'gastrored'@'127.0.0.1';
 ```
 
-Después ejecuta:
+Completa `MYSQL_PASSWORD` en `.env.server` con la misma clave que asignaste y conserva `DEMO_PAYMENTS_ENABLED=true` solo en tu entorno local. En `.env.local`, cambia `VITE_DEMO_MODE=false` para que la web use la API en vez del almacenamiento temporal del modo demo. Después ejecuta:
 
 ```bash
-npm run db:migrate
+npm run demo:setup
 npm run dev:api
 ```
 
-En otra terminal, inicia Vite con `npm run dev` y cambia `VITE_DEMO_MODE=false` en `.env.local`. En despliegues, configura HTTPS, una URL pública para `MERCADOPAGO_WEBHOOK_URL`, credenciales de Mercado Pago y un `SMTP_URL` para entregar códigos de verificación. `FRONTEND_ORIGIN` debe ser el origen público exacto del frontend. No copies credenciales reales a archivos versionados.
+En otra terminal, inicia Vite con `npm run dev`. `demo:setup` aplica las migraciones y crea estas cuentas locales, con correo verificado y listas para iniciar sesión:
+
+- Cliente Free: `cliente@gastrored.demo` / `GastroDemo2026!`
+- Restaurante: dominio `mesaysabor.demo` / `MesaDemo2026!`
+
+El seed puede volver a ejecutarse para restaurar las credenciales de demostración; no elimina reservas ni reseñas. En desarrollo, `DEMO_PAYMENTS_ENABLED=true` activa los planes Pro/Restaurante sin efectuar un cobro real. Esta opción se rechaza al iniciar en producción. En despliegues, usa `DEMO_PAYMENTS_ENABLED=false`, configura HTTPS, una URL pública para `MERCADOPAGO_WEBHOOK_URL`, credenciales de Mercado Pago y un `SMTP_URL` para entregar códigos de verificación. `FRONTEND_ORIGIN` debe ser el origen público exacto del frontend. No copies credenciales reales a archivos versionados.
 
 ## Tema por horario
 
@@ -51,15 +56,16 @@ El tema se ajusta a la hora local del dispositivo: modo claro de 06:00 a 17:59 y
 - Descubrimiento de restaurantes reales con OpenStreetMap. Free usa 200 m; Pro puede ampliar el radio hasta 1 km cuando la suscripción está activa.
 - Registro e inicio de sesión de clientes con correo personal; registro de restaurantes con dominio único, correo corporativo del mismo dominio y acceso mediante dominio y contraseña.
 - Verificación de correo por código; los códigos solo se devuelven en desarrollo cuando no hay SMTP configurado.
-- Plan cliente Pro a S/ 100/mes y plan Restaurante a S/ 120/mes. Mercado Pago crea suscripciones mensuales; la activación depende de validar el webhook firmado. Se requieren credenciales de despliegue; el repositorio no incluye claves.
+- Plan cliente Pro a S/ 100/mes y plan Restaurante a S/ 120/mes. En producción, Mercado Pago crea suscripciones mensuales y la activación depende de validar el webhook firmado. En la instalación demo local, el simulador puede activar el plan sin cobrar.
 - Reservas, comentarios y favoritos personales requieren una cuenta de cliente con sesión. Las reservas y comentarios se persisten en MySQL al desactivar el modo demo; cada cuenta puede publicar una opinión por restaurante y mantener favoritos por cuenta en este dispositivo.
 - Guía curada siempre disponible con carta, precios por plato, reseñas y fotografías reales; cada imagen tiene su crédito y los locales sin foto propia muestran un espacio neutro, nunca una imagen referencial.
 - Ficha de restaurante con menú y reseñas de ejemplo, comentarios autenticados de 1 a 5 estrellas, mapa de Google, distancia desde la ubicación del usuario con permiso, favoritos guardados en este dispositivo y solicitud de reserva con validación Zod/React Hook Form.
 - Comparador de hasta cuatro restaurantes, criterios prioritarios, puntuación ponderada explicada, normalizada y probada, con contraste de tema oscuro.
-- Panel de restaurantes protegido por sesión y suscripción activa: permite editar horario, turnos, política de reservas, precio promedio y precio de platos; muestra reservas pendientes y finalizadas, y permite confirmar o finalizar una solicitud.
+- Panel de restaurantes protegido por sesión y suscripción activa: permite editar horario, turnos, mesas disponibles por turno, política de reservas, precio promedio y precio de platos; muestra reservas pendientes y finalizadas, y permite confirmar o finalizar una solicitud.
 - Las reservas solo pueden solicitarse en un turno publicado por el restaurante. La ficha pública refleja los horarios y precios guardados.
+- El restaurante define cuántas mesas ofrece en cada turno; cada solicitud pendiente o confirmada ocupa una mesa y el sistema impide aceptar solicitudes cuando se agota esa capacidad. La ficha muestra las mesas restantes para la fecha elegida.
 - El dominio y correo corporativos se verifican durante el registro; un responsable de GastroRed debe vincular la ficha pública a la cuenta antes de habilitar su administración.
-- En modo demo, el radio superior sigue siendo 200 m; el pago no se completa sin configurar API/Mercado Pago. Reservas y comentarios requieren sesión de cliente real.
+- En el modo de datos demo del frontend, el radio superior sigue siendo 200 m. Para una demostración persistente, usa la API local y las cuentas sembradas; el simulador de pagos local no cobra. Reservas y comentarios requieren sesión de cliente.
 - Estados de carga, error y ausencia de resultados.
 - La cuenta de restaurante recién creada se registra en la base de datos; la vinculación a una ficha pública de la guía requiere asociar esa ficha. El panel informa cuando la cuenta todavía no está vinculada y no permite modificar fichas ajenas.
 
@@ -77,7 +83,7 @@ Los restaurantes de ejemplo, horarios, reseñas, distancias de referencia y prec
 
 ## API y persistencia
 
-La API Node está en `server/`; el esquema inicial y los cambios de gestión están en `server/migrations/001_initial.sql` y `server/migrations/002_restaurant_management.sql`. `npm run db:migrate` aplica las migraciones pendientes antes de iniciar la API. Las operaciones implementadas incluyen:
+La API Node está en `server/`; las migraciones están en `server/migrations/`. `npm run demo:setup` migra la base y crea las cuentas de prueba; también puedes ejecutar `npm run db:migrate` y `npm run db:seed-demo` por separado. Las sesiones, cuentas, reservas, reseñas y ajustes de restaurantes se guardan en MySQL. Las operaciones implementadas incluyen:
 
 - `POST /api/v1/auth/register`, `POST /api/v1/auth/verify-email`, `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`
 - `POST /api/v1/billing/checkout`, `POST /api/v1/billing/webhook`

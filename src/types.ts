@@ -33,6 +33,8 @@ export type Restaurant = {
   tags: string[]
   hours: string
   availableTimes: string[]
+  tableAvailability?: Record<string, number>
+  remainingTables?: Record<string, number>
   menuHighlights: MenuHighlight[]
   ambience: string
   reservationPolicy: string

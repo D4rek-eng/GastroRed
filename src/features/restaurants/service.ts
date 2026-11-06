@@ -6,8 +6,11 @@ import { publicAsset } from '../../lib/publicAsset'
 
 const demoMode = import.meta.env.VITE_DEMO_MODE !== 'false'
 const ownerSettingsStorageKey = 'mesa-owner-settings'
-type RestaurantOwnerSettings = Pick<Restaurant, 'hours' | 'availableTimes' | 'reservationPolicy' | 'pricePerPerson' | 'menuHighlights'>
+type RestaurantOwnerSettings = Pick<Restaurant, 'hours' | 'availableTimes' | 'reservationPolicy' | 'pricePerPerson' | 'menuHighlights'> & {
+  tableAvailability: Record<string, number>
+}
 type PublicRestaurantSettings = Partial<RestaurantOwnerSettings> & { id: string }
+const defaultTablesPerTurn = 8
 
 export function findRestaurantById(id: string): Restaurant | null {
   return restaurants.find((item) => item.id === id) ?? getStoredNearbyPlace(id)
@@ -20,9 +23,14 @@ function getDemoOwnerSettings(): Record<string, Partial<RestaurantOwnerSettings>
 
 function withDemoSettings(restaurant: Restaurant): Restaurant {
   const settings = getDemoOwnerSettings()[restaurant.id]
+  const availableTimes = settings?.availableTimes ?? restaurant.availableTimes
   return {
     ...restaurant,
     ...settings,
+    tableAvailability: Object.fromEntries(availableTimes.map((time) => [
+      time,
+      settings?.tableAvailability?.[time] ?? restaurant.tableAvailability?.[time] ?? defaultTablesPerTurn,
+    ])),
     pricePerPerson: settings?.pricePerPerson ?? restaurant.pricePerPerson,
     menuHighlights: settings?.menuHighlights ?? restaurant.menuHighlights,
   }
@@ -33,9 +41,14 @@ function mergeSettings(
   settings: PublicRestaurantSettings | undefined,
   hideUnpublishedAvailability = false,
 ): Restaurant {
+  const availableTimes = settings?.availableTimes ?? restaurant.availableTimes
   return {
     ...restaurant,
     ...settings,
+    tableAvailability: Object.fromEntries(availableTimes.map((time) => [
+      time,
+      settings?.tableAvailability?.[time] ?? restaurant.tableAvailability?.[time] ?? defaultTablesPerTurn,
+    ])),
     ...(hideUnpublishedAvailability && !settings?.availableTimes ? { availableTimes: [] } : {}),
     id: restaurant.id,
   }
@@ -119,14 +132,15 @@ export const restaurantService = {
       .map(withDemoSettings)
   },
 
-  async getById(id: string, signal?: AbortSignal): Promise<Restaurant> {
+  async getById(id: string, signal?: AbortSignal, date?: string): Promise<Restaurant> {
     await Promise.resolve()
     if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
     const restaurant = findRestaurantById(id)
     if (!restaurant) throw new Error('No encontramos ese restaurante.')
     if (restaurant.source === 'osm') return restaurant
     if (demoMode) return withDemoSettings(restaurant)
-    const settings = await apiRequest<PublicRestaurantSettings>(`/api/v1/restaurants/${encodeURIComponent(id)}`, { signal })
+    const search = date ? `?date=${encodeURIComponent(date)}` : ''
+    const settings = await apiRequest<PublicRestaurantSettings>(`/api/v1/restaurants/${encodeURIComponent(id)}${search}`, { signal })
     return mergeSettings(restaurant, settings, true)
   },
 
@@ -192,14 +206,14 @@ export const restaurantService = {
       })
       const restaurant = restaurants.find((item) => item.id === id)
       if (!restaurant) throw new Error('No encontramos ese restaurante.')
-      return { ...restaurant, ...savedSettings }
+      return mergeSettings(restaurant, { id, ...savedSettings })
     }
     const restaurant = restaurants.find((item) => item.id === id)
     if (!restaurant) throw new Error('No encontramos ese restaurante.')
     const savedSettings = getDemoOwnerSettings()
     savedSettings[id] = settings
     localStorage.setItem(ownerSettingsStorageKey, JSON.stringify(savedSettings))
-    return { ...restaurant, ...settings }
+    return withDemoSettings({ ...restaurant, ...settings })
   },
 
   async createReservation(input: ReservationInput): Promise<Reservation> {

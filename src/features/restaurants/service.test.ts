@@ -54,6 +54,7 @@ describe('restaurant filtering', () => {
     const updated = await restaurantService.updateOwnerSettings('central', {
       hours: 'Mié–dom · 14:00–23:00',
       availableTimes: ['14:00', '20:00'],
+      tableAvailability: { '14:00': 6, '20:00': 3 },
       reservationPolicy: 'Reserva previa',
       pricePerPerson: 190,
       menuHighlights: restaurants.find((restaurant) => restaurant.id === 'central')!.menuHighlights.map((dish, index) => ({
@@ -63,8 +64,10 @@ describe('restaurant filtering', () => {
     })
     expect(updated.hours).toBe('Mié–dom · 14:00–23:00')
     expect(updated.pricePerPerson).toBe(190)
+    expect(updated.tableAvailability).toEqual({ '14:00': 6, '20:00': 3 })
     expect((await restaurantService.getById('central')).menuHighlights[0].price).toBe(99)
     expect((await restaurantService.getById('central')).availableTimes).toEqual(['14:00', '20:00'])
+    expect((await restaurantService.getById('central')).tableAvailability).toEqual({ '14:00': 6, '20:00': 3 })
     expect((await restaurantService.list({ ...defaults, query: 'Mérito' }))[0].hours).toBe('Mié–dom · 14:00–23:00')
   })
 
@@ -76,6 +79,13 @@ describe('restaurant filtering', () => {
     const updated = await restaurantService.getById('central')
     expect(updated.pricePerPerson).toBe(catalogRestaurant.pricePerPerson)
     expect(updated.menuHighlights).toEqual(catalogRestaurant.menuHighlights)
+  })
+
+  it('uses a safe table count for old demo settings without table availability', async () => {
+    localStorage.setItem('mesa-owner-settings', JSON.stringify({
+      central: { availableTimes: ['19:00', '20:00'] },
+    }))
+    expect((await restaurantService.getById('central')).tableAvailability).toEqual({ '19:00': 8, '20:00': 8 })
   })
 })
 

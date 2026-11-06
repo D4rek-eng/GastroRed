@@ -27,10 +27,17 @@ export function RestaurantsPage() {
   })
   const [showFilters, setShowFilters] = useState(false)
   const [radiusMessage, setRadiusMessage] = useState('')
+  const [favoriteState, setFavoriteState] = useState<{ accountId: string; ids: string[] } | null>(null)
   const userLocation = useUserLocation()
   const { session } = useOwnerAuth()
   const location = userLocation.location
   const pageLocation = useLocation()
+  const favoriteAccountId = session?.id ?? session?.email ?? ''
+  const favoriteIds = session?.role === 'customer'
+    ? favoriteState?.accountId === favoriteAccountId
+      ? favoriteState.ids
+      : JSON.parse(localStorage.getItem(`mesa-favorites-${favoriteAccountId}`) ?? '[]') as string[]
+    : []
   const hasProRadius = session?.role === 'customer' && session.plan === 'pro' && session.planStatus === 'active'
   const maximumRadius = hasProRadius ? 1000 : DEFAULT_NEARBY_RADIUS
 
@@ -106,6 +113,15 @@ export function RestaurantsPage() {
     setParams(next, { replace: true })
   }
 
+  function toggleFavorite(restaurantId: string) {
+    if (session?.role !== 'customer') return
+    const updated = favoriteIds.includes(restaurantId)
+      ? favoriteIds.filter((id) => id !== restaurantId)
+      : [...favoriteIds, restaurantId]
+    localStorage.setItem(`mesa-favorites-${favoriteAccountId}`, JSON.stringify(updated))
+    setFavoriteState({ accountId: favoriteAccountId, ids: updated })
+  }
+
   const placeLabel = location?.shortLabel || 'tu zona'
   const accuracyWarning = location && location.accuracy > 500
     ? `La ubicación que entregó tu navegador es aproximada (${formatAccuracy(location.accuracy)}). Si no corresponde a tu distrito, activa la “ubicación precisa” del dispositivo y vuelve a intentarlo.`
@@ -176,11 +192,7 @@ export function RestaurantsPage() {
             {!restaurant.image && <PhotoPlaceholder name={restaurant.name} />}
             <Link to={`/restaurantes/${restaurant.id}`} className="image-tag">{restaurant.cuisine.toUpperCase()}</Link>
             {session?.role === 'customer'
-              ? <button className="image-favorite" type="button" aria-label={`Guardar ${restaurant.name} en favoritos`} onClick={() => {
-                const key = `mesa-favorites-${session.id}`
-                const saved = JSON.parse(localStorage.getItem(key) ?? '[]') as string[]
-                localStorage.setItem(key, JSON.stringify(saved.includes(restaurant.id) ? saved.filter((id) => id !== restaurant.id) : [...saved, restaurant.id]))
-              }}><Heart size={16} aria-hidden="true" /></button>
+              ? <button className={`image-favorite${favoriteIds.includes(restaurant.id) ? ' selected' : ''}`} type="button" aria-pressed={favoriteIds.includes(restaurant.id)} aria-label={`${favoriteIds.includes(restaurant.id) ? 'Quitar' : 'Guardar'} ${restaurant.name} ${favoriteIds.includes(restaurant.id) ? 'de' : 'en'} favoritos`} onClick={() => toggleFavorite(restaurant.id)}><Heart size={16} fill={favoriteIds.includes(restaurant.id) ? 'currentColor' : 'none'} aria-hidden="true" /></button>
               : <Link className="image-favorite" aria-label={`Inicia sesión para guardar ${restaurant.name}`} to="/login" state={{ from: pageLocation.pathname }}><Heart size={16} aria-hidden="true" /></Link>}
           </div>
           <div className="restaurant-card-body">

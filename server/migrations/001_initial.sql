@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   guests TINYINT UNSIGNED NOT NULL,
   customer_name VARCHAR(120) NOT NULL,
   customer_email VARCHAR(254) NOT NULL,
-  status ENUM('pending', 'confirmed', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
+  status ENUM('pending', 'confirmed', 'cancelled') NOT NULL DEFAULT 'pending',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_reservations_user_date (user_id, reservation_date),
   INDEX idx_reservations_restaurant_date (restaurant_id, reservation_date),
@@ -116,8 +116,6 @@ CREATE TABLE IF NOT EXISTS restaurant_settings (
   hours VARCHAR(120) NOT NULL,
   available_times JSON NOT NULL,
   reservation_policy VARCHAR(240) NOT NULL,
-  price_per_person DECIMAL(8, 2) NULL,
-  menu_highlights JSON NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_settings_restaurant FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
