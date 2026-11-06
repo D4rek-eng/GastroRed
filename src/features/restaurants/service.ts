@@ -13,13 +13,19 @@ export function findRestaurantById(id: string): Restaurant | null {
   return restaurants.find((item) => item.id === id) ?? getStoredNearbyPlace(id)
 }
 
-function getDemoOwnerSettings(): Record<string, RestaurantOwnerSettings> {
+function getDemoOwnerSettings(): Record<string, Partial<RestaurantOwnerSettings>> {
   const savedSettings = localStorage.getItem(ownerSettingsStorageKey)
-  return savedSettings ? JSON.parse(savedSettings) as Record<string, RestaurantOwnerSettings> : {}
+  return savedSettings ? JSON.parse(savedSettings) as Record<string, Partial<RestaurantOwnerSettings>> : {}
 }
 
 function withDemoSettings(restaurant: Restaurant): Restaurant {
-  return { ...restaurant, ...getDemoOwnerSettings()[restaurant.id] }
+  const settings = getDemoOwnerSettings()[restaurant.id]
+  return {
+    ...restaurant,
+    ...settings,
+    pricePerPerson: settings?.pricePerPerson ?? restaurant.pricePerPerson,
+    menuHighlights: settings?.menuHighlights ?? restaurant.menuHighlights,
+  }
 }
 
 function mergeSettings(

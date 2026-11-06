@@ -223,12 +223,12 @@ export function RestaurantsPage() {
               >{value > maximumRadius && <LockKeyhole size={11} />}{value < 1000 ? `${value} m` : `${value / 1000} km`}</button>
             ))}
             <span className="radius-note">
-              {hasProRadius ? 'Radio disponible con tu plan.' : <>Free incluye 200 m · <Link to={session?.role === 'customer' ? '/perfil' : '/login?mode=register'}>{session?.role === 'customer' ? 'Cambiar a Pro · S/ 100/mes' : 'Regístrate para ampliar con Pro'}</Link></>}
+              {hasProRadius ? 'Radio disponible con tu plan.' : <>Free incluye 200 m · <Link to={session?.role === 'customer' ? '/perfil' : '/login?mode=register'} state={session?.role === 'customer' ? undefined : { from: pageLocation.pathname }}>{session?.role === 'customer' ? 'Cambiar a Pro · S/ 100/mes' : 'Regístrate para ampliar con Pro'}</Link></>}
             </span>
           </div>
           {radiusMessage && <div className="radius-upgrade-prompt" role="status">
             <div><strong>Amplía tu búsqueda con Pro</strong><span>Accede hasta 1 km por S/ 100 al mes.</span></div>
-            <Link className="button button-primary" to={session?.role === 'customer' ? '/perfil' : '/login?mode=register'}>{session?.role === 'customer' ? 'Ver opciones Pro' : 'Iniciar sesión o registrarme'} <ArrowRight size={14} /></Link>
+            <Link className="button button-primary" to={session?.role === 'customer' ? '/perfil' : '/login?mode=register'} state={session?.role === 'customer' ? undefined : { from: pageLocation.pathname }}>{session?.role === 'customer' ? 'Ver opciones Pro' : 'Iniciar sesión o registrarme'} <ArrowRight size={14} /></Link>
             <button type="button" className="radius-prompt-dismiss" aria-label="Cerrar aviso" onClick={() => setRadiusMessage('')}><X size={15} /></button>
           </div>}
 

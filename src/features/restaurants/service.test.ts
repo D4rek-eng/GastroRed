@@ -67,6 +67,16 @@ describe('restaurant filtering', () => {
     expect((await restaurantService.getById('central')).availableTimes).toEqual(['14:00', '20:00'])
     expect((await restaurantService.list({ ...defaults, query: 'Mérito' }))[0].hours).toBe('Mié–dom · 14:00–23:00')
   })
+
+  it('keeps catalog prices when loading settings saved before price management', async () => {
+    const catalogRestaurant = restaurants.find((restaurant) => restaurant.id === 'central')!
+    localStorage.setItem('mesa-owner-settings', JSON.stringify({
+      central: { hours: 'Mar–sáb · 13:00–22:00', availableTimes: ['19:00'], reservationPolicy: '' },
+    }))
+    const updated = await restaurantService.getById('central')
+    expect(updated.pricePerPerson).toBe(catalogRestaurant.pricePerPerson)
+    expect(updated.menuHighlights).toEqual(catalogRestaurant.menuHighlights)
+  })
 })
 
 describe('comparison score', () => {
