@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -14,6 +14,7 @@ describe('marketing landing page', () => {
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
     const { container } = render(<MemoryRouter><MarketingLandingPage /></MemoryRouter>)
 
+    expect(screen.getAllByRole('img', { name: 'GastroRed Food Platform' })).toHaveLength(2)
     expect(screen.getByRole('heading', { name: 'Tu próximo lugar favorito está cerca' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /descubrir restaurantes/i })).toHaveAttribute('href', '/restaurantes')
     const navigation = screen.getByRole('navigation', { name: 'Navegación de GastroRed' })
@@ -35,10 +36,31 @@ describe('marketing landing page', () => {
     expect(screen.getByRole('navigation', { name: 'Navegación de GastroRed' })).toBeInTheDocument()
   })
 
+  it('collapses the floating menu to its logo while scrolling down and expands it on the way back up', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 })
+    render(<MemoryRouter><MarketingLandingPage /></MemoryRouter>)
+
+    const header = screen.getByRole('banner')
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 160 })
+    fireEvent.scroll(window)
+    expect(header).toHaveClass('is-collapsed')
+    expect(within(header).getByRole('img', { name: 'GastroRed Food Platform' })).toBeInTheDocument()
+    expect(within(header).getByRole('navigation', { name: 'Navegación de GastroRed' })).toHaveAttribute('inert')
+
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 })
+    fireEvent.scroll(window)
+    expect(header).not.toHaveClass('is-collapsed')
+    expect(within(header).getByRole('navigation', { name: 'Navegación de GastroRed' })).not.toHaveAttribute('inert')
+  })
+
   it('lets visitors switch the restaurant shown in the animated phone preview', async () => {
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
     const user = userEvent.setup()
     render(<MemoryRouter><MarketingLandingPage /></MemoryRouter>)
+
+    expect(document.querySelector('.landing-phone-brand img')).not.toBeInTheDocument()
+    expect(screen.getByText('GastroRed')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mostrar La Mar Cebichería' }))
 

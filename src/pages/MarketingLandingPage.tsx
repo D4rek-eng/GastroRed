@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowRight, ArrowUpRight, MapPin, Menu, Utensils, X } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUpRight, MapPin, Menu, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { publicAsset } from '../lib/publicAsset'
 import './MarketingLandingPage.css'
@@ -57,13 +57,14 @@ const phoneSlides = [
 
 export function MarketingLandingPage() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [navHidden, setNavHidden] = useState(false)
+  const [navCollapsed, setNavCollapsed] = useState(false)
   const [activePhoneSlide, setActivePhoneSlide] = useState(0)
   const pageRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     const page = pageRef.current
     if (!page) return
+    const header = page.querySelector('.landing-header')
 
     const allowMotion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const layers = allowMotion ? [...page.querySelectorAll<HTMLElement>('[data-parallax]')].map((element) => ({
@@ -76,11 +77,11 @@ export function MarketingLandingPage() {
     function updateNavigation() {
       const scrollY = window.scrollY
       if (scrollY < 96) {
-        setNavHidden(false)
+        setNavCollapsed(false)
       } else if (scrollY > previousScrollY + 1) {
-        setNavHidden(true)
+        if (!header?.contains(document.activeElement)) setNavCollapsed(true)
       } else if (scrollY < previousScrollY - 1) {
-        setNavHidden(false)
+        setNavCollapsed(false)
       }
       previousScrollY = scrollY
     }
@@ -141,14 +142,17 @@ export function MarketingLandingPage() {
 
   return (
     <main className="marketing-landing" ref={pageRef}>
-      <header className={`landing-header${navHidden ? ' is-hidden' : ''}${menuOpen ? ' menu-is-open' : ''}`}>
+      <header
+        className={`landing-header${navCollapsed ? ' is-collapsed' : ''}${menuOpen ? ' menu-is-open' : ''}`}
+        onFocusCapture={() => setNavCollapsed(false)}
+      >
         <Link className="landing-brand" to="/inicio" aria-label="GastroRed, entrar a la guía">
-          <span className="landing-brand-mark"><Utensils size={18} /></span>
-          <span>GastroRed<small>BUENOS MOMENTOS, BUENA MESA</small></span>
+          <img src={publicAsset('/images/gastrored-logo.png')} alt="GastroRed Food Platform" />
         </Link>
         <button
           className="landing-menu-button"
           type="button"
+          inert={navCollapsed}
           onClick={() => setMenuOpen((open) => !open)}
           aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
           aria-expanded={menuOpen}
@@ -156,7 +160,12 @@ export function MarketingLandingPage() {
         >
           {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
-        <nav className={`landing-nav${menuOpen ? ' is-open' : ''}`} id="landing-nav" aria-label="Navegación de GastroRed">
+        <nav
+          className={`landing-nav${menuOpen ? ' is-open' : ''}`}
+          id="landing-nav"
+          aria-label="Navegación de GastroRed"
+          inert={navCollapsed}
+        >
           <a href="#como-funciona" onClick={closeMenu}>Cómo funciona</a>
           <a href="#planes" onClick={closeMenu}>Planes</a>
           <Link to="/restaurantes" onClick={closeMenu}>Restaurantes</Link>
@@ -195,7 +204,7 @@ export function MarketingLandingPage() {
           <div className="landing-phone-float" data-parallax="-0.035">
             <article className="landing-phone" aria-label="Ejemplo ilustrativo de ficha de restaurante">
               <div className="landing-phone-top"><span>9:41</span><span className="phone-camera" /><span>●●●</span></div>
-              <div className="landing-phone-brand"><span className="landing-brand-mark"><Utensils size={12} /></span> GastroRed <span>•••</span></div>
+              <div className="landing-phone-brand"><span>GastroRed</span><span>•••</span></div>
               <img key={phoneSlides[activePhoneSlide].image} src={publicAsset(phoneSlides[activePhoneSlide].image)} alt={phoneSlides[activePhoneSlide].alt} />
               <div className="landing-phone-content" key={phoneSlides[activePhoneSlide].id}>
                 <span className="phone-kicker">FICHA DE EJEMPLO</span>
@@ -292,8 +301,7 @@ export function MarketingLandingPage() {
 
       <footer className="landing-footer">
         <Link className="landing-brand" to="/inicio">
-          <span className="landing-brand-mark"><Utensils size={16} /></span>
-          <span>GastroRed<small>BUENOS MOMENTOS, BUENA MESA</small></span>
+          <img src={publicAsset('/images/gastrored-logo.png')} alt="GastroRed Food Platform" />
         </Link>
         <p>Descubre restaurantes que se sienten como tu lugar favorito.</p>
         <nav aria-label="Enlaces de pie de página">
