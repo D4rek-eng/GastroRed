@@ -1,0 +1,44 @@
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it } from 'vitest'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { OwnerAuthProvider } from '../features/auth/OwnerAuthProvider'
+import { LocationProvider } from '../features/location/LocationProvider'
+import { SiteLayout } from './SiteLayout'
+
+describe('application navigation', () => {
+  afterEach(() => {
+    cleanup()
+    localStorage.clear()
+  })
+
+  it('offers one general Login entry and closes the mobile menu after navigation', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/inicio']}>
+        <OwnerAuthProvider>
+          <LocationProvider>
+            <Routes>
+              <Route element={<SiteLayout />}>
+                <Route path="/inicio" element={<p>Inicio de GastroRed</p>} />
+                <Route path="/restaurantes" element={<p>Guía de restaurantes</p>} />
+              </Route>
+            </Routes>
+          </LocationProvider>
+        </OwnerAuthProvider>
+      </MemoryRouter>,
+    )
+
+    const navigation = screen.getByRole('navigation', { name: 'Navegación principal' })
+    expect(navigation.querySelector('a[href="/login"]')).toHaveTextContent('Login')
+    expect(navigation.querySelector('a[href="/propietario/login"]')).not.toBeInTheDocument()
+
+    const menuButton = screen.getByRole('button', { name: 'Abrir menú' })
+    await user.click(menuButton)
+    expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+
+    await user.click(screen.getByRole('link', { name: 'Explorar' }))
+    expect(await screen.findByText('Guía de restaurantes')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir menú' })).toHaveAttribute('aria-expanded', 'false')
+  })
+})

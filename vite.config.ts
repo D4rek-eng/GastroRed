@@ -5,6 +5,11 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   base: '/GastroRed/',
   plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      '/api': 'http://127.0.0.1:3001',
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],

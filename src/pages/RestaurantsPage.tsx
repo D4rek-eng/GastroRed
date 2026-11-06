@@ -11,6 +11,7 @@ import {
 import { distanceBetweenLocations, formatAccuracy, formatDistance } from '../features/location/location'
 import { useUserLocation } from '../features/location/useUserLocation'
 import { PhotoPlaceholder } from '../components/PhotoPlaceholder'
+import { useOwnerAuth } from '../features/auth/useOwnerAuth'
 import type { RestaurantFilters } from '../types'
 
 const NearbyMap = lazy(() => import('../components/NearbyMap').then((module) => ({ default: module.NearbyMap })))
@@ -26,10 +27,14 @@ export function RestaurantsPage() {
   })
   const [showFilters, setShowFilters] = useState(false)
   const userLocation = useUserLocation()
+  const { session } = useOwnerAuth()
   const location = userLocation.location
+  const isDemo = import.meta.env.VITE_DEMO_MODE !== 'false'
+  const hasProRadius = isDemo || (session?.role === 'customer' && session.plan === 'pro' && session.planStatus === 'active')
+  const maximumRadius = hasProRadius ? 1000 : DEFAULT_NEARBY_RADIUS
 
   const requestedRadius = Number(params.get('radio'))
-  const radius = NEARBY_RADII.includes(requestedRadius as (typeof NEARBY_RADII)[number])
+  const radius = NEARBY_RADII.includes(requestedRadius as (typeof NEARBY_RADII)[number]) && requestedRadius <= maximumRadius
     ? requestedRadius
     : DEFAULT_NEARBY_RADIUS
 
@@ -80,6 +85,7 @@ export function RestaurantsPage() {
   }
 
   function updateRadius(value: (typeof NEARBY_RADII)[number]) {
+    if (value > maximumRadius) return
     const next = new URLSearchParams(params)
     if (value === DEFAULT_NEARBY_RADIUS) next.delete('radio')
     else next.set('radio', String(value))
@@ -199,10 +205,13 @@ export function RestaurantsPage() {
                 type="button"
                 className={radius === value ? 'active' : ''}
                 aria-pressed={radius === value}
+                disabled={value > maximumRadius}
                 onClick={() => updateRadius(value)}
               >{value < 1000 ? `${value} m` : `${value / 1000} km`}</button>
             ))}
-            <span className="radius-note">Solo para los locales de OpenStreetMap</span>
+            <span className="radius-note">
+              {hasProRadius ? 'Radio disponible con tu plan.' : <>Free incluye 200 m · <Link to="/perfil">Ampliar a 1 km con Pro</Link></>}
+            </span>
           </div>
 
           {!nearbyQuery.isLoading && !nearbyQuery.isError && nearbyPlaces.length > 0 && (
@@ -218,7 +227,7 @@ export function RestaurantsPage() {
               <strong>No hay restaurantes registrados a {radiusUsed} m de {placeLabel}.</strong>
               <p>OpenStreetMap todavía no tiene locales con nombre en este radio. Prueba con un radio mayor o explora la guía completa.</p>
               <div className="state-actions">
-                {NEARBY_RADII.filter((value) => value > radius).map((value) => (
+                {NEARBY_RADII.filter((value) => value > radius && value <= maximumRadius).map((value) => (
                   <button key={value} className="button button-primary" type="button" onClick={() => updateRadius(value)}>
                     Ampliar a {value < 1000 ? `${value} m` : `${value / 1000} km`} <ArrowRight size={15} />
                   </button>

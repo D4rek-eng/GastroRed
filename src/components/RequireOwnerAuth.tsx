@@ -8,7 +8,7 @@ export function RequireOwnerAuth({ children }: { children: ReactNode }) {
 
   if (isLoading) return <div className="page-container loading-copy">Verificando acceso…</div>
   if (error) return <div className="page-container state-card" role="alert"><strong>{error}</strong></div>
-  if (!session) {
+  if (!session || session.role === 'customer' || (session.planStatus && session.planStatus !== 'active')) {
     return <Navigate to="/propietario/login" replace state={{ from: location.pathname }} />
   }
   return children

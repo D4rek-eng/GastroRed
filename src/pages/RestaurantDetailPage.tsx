@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock3, ExternalLink, Heart, MapPin, Minus, Plus, Star, Utensils, Users } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { PhotoPlaceholder } from '../components/PhotoPlaceholder'
 import { restaurantService } from '../features/restaurants/service'
+import { useOwnerAuth } from '../features/auth/useOwnerAuth'
 import { reservationContactSchema } from '../features/reservations/validation'
 import { distanceBetweenLocations, formatDistance } from '../features/location/location'
 import { useUserLocation } from '../features/location/useUserLocation'
@@ -17,7 +18,9 @@ const isDemo = import.meta.env.VITE_DEMO_MODE !== 'false'
 
 export function RestaurantDetailPage() {
   const { id = '' } = useParams()
+  const location = useLocation()
   const queryClient = useQueryClient()
+  const { session } = useOwnerAuth()
   const { data: restaurant, isLoading, isError } = useQuery({ queryKey: ['restaurant', id], queryFn: ({ signal }) => restaurantService.getById(id, signal) })
   const { data: reviews = [], isLoading: reviewsLoading, isError: reviewsError, refetch: refetchReviews } = useQuery({
     queryKey: ['restaurant-reviews', id],
@@ -34,9 +37,9 @@ export function RestaurantDetailPage() {
   const [guests, setGuests] = useState(2)
   const [date, setDate] = useState(todayLocal)
   const [message, setMessage] = useState('')
-  const { register, handleSubmit, formState: { errors } } = useForm<{ name: string; email: string }>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<{ name: string; email: string }>({
     resolver: zodResolver(reservationContactSchema),
-    defaultValues: { name: '', email: '' },
+    defaultValues: { name: session?.name ?? '', email: session?.email ?? '' },
   })
   const isFavorite = restaurant ? savedFavorites.includes(restaurant.id) : false
   const isOsm = restaurant?.source === 'osm'
@@ -50,10 +53,16 @@ export function RestaurantDetailPage() {
     ? `https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}${userLocation.location ? `&origin=${userLocation.location.latitude},${userLocation.location.longitude}` : ''}`
     : ''
 
+  useEffect(() => {
+    if (session?.role === 'customer') {
+      reset({ name: session.name ?? '', email: session.email })
+    }
+  }, [reset, session])
+
   const mutation = useMutation({
     mutationFn: (reservation: ReservationInput) => restaurantService.createReservation(reservation),
     onSuccess: (reservation) => {
-      queryClient.setQueryData<Reservation[]>(['reservations'], (previous = []) => [...previous, reservation])
+      queryClient.setQueryData<Reservation[]>(['reservations', session?.id], (previous = []) => [...previous, reservation])
       setMessage('Solicitud recibida. La mesa aún debe ser confirmada por el restaurante.')
     },
     onError: (error) => setMessage(error instanceof Error ? error.message : 'No se pudo enviar la solicitud.'),
@@ -79,7 +88,14 @@ export function RestaurantDetailPage() {
       return
     }
     setMessage('')
-    mutation.mutate({ restaurantId: restaurant.id, date, time: selectedTime, guests, ...contact })
+    mutation.mutate({
+      restaurantId: restaurant.id,
+      date,
+      time: selectedTime,
+      guests,
+      name: session?.name ?? contact.name,
+      email: session?.email ?? contact.email,
+    })
   }
 
   function submitReview(event: FormEvent<HTMLFormElement>) {
@@ -88,7 +104,7 @@ export function RestaurantDetailPage() {
     setReviewMessage('')
     reviewMutation.mutate({
       restaurantId: restaurant.id,
-      author: reviewAuthor,
+      author: session?.name ?? reviewAuthor,
       rating: reviewRating,
       comment: reviewComment,
     })
@@ -174,11 +190,12 @@ export function RestaurantDetailPage() {
                 </div>
               )}
             </div>
-            <form className="review-form" onSubmit={submitReview}>
+            {isDemo || session?.role === 'customer' ? <form className="review-form" onSubmit={submitReview}>
               <strong>Comparte tu experiencia</strong>
-              <label className="contact-field">Tu nombre
+              {isDemo && <label className="contact-field">Tu nombre
                 <input value={reviewAuthor} onChange={(event) => setReviewAuthor(event.target.value)} maxLength={80} required placeholder="Nombre y apellido" />
-              </label>
+              </label>}
+              {!isDemo && <p className="review-account-name">Comentario como <strong>{session?.name}</strong></p>}
               <fieldset className="review-rating-picker">
                 <legend>Tu valoración</legend>
                 <div role="group" aria-label="Valora de 1 a 5 estrellas">
@@ -202,7 +219,11 @@ export function RestaurantDetailPage() {
                 {reviewMutation.isPending ? 'Publicando…' : 'Publicar comentario'}
               </button>
               {reviewMessage && <p className={`review-form-message${reviewMutation.isError ? ' error' : ''}`} role="status">{reviewMessage}</p>}
-            </form>
+            </form> : <div className="review-login-prompt">
+              <strong>Inicia sesión para compartir tu experiencia.</strong>
+              <p>Los comentarios quedan asociados a tu cuenta.</p>
+              <Link className="button button-outline" to="/login" state={{ from: location.pathname }}>Login o crear cuenta <ArrowRight size={14} /></Link>
+            </div>}
             {reviewsLoading && <p className="reviews-state" role="status">Cargando comentarios…</p>}
             {reviewsError && <div className="reviews-state reviews-error" role="alert">No se pudieron cargar los comentarios. <button type="button" onClick={() => void refetchReviews()}>Intentar de nuevo</button></div>}
             <div className="review-filter" aria-label="Filtrar reseñas por valoración">
@@ -278,11 +299,20 @@ export function RestaurantDetailPage() {
             <div className="booking-field"><span><Users size={15} /> Comensales</span><div className="guest-stepper"><button type="button" aria-label="Quitar comensales" onClick={() => setGuests((count) => Math.max(1, count - 1))}><Minus size={14} /></button><strong>{guests} personas</strong><button type="button" aria-label="Añadir comensales" onClick={() => setGuests((count) => Math.min(12, count + 1))}><Plus size={14} /></button></div></div>
             <div className="booking-times"><span><Clock3 size={15} /> Horarios de demostración</span><div>{restaurant.availableTimes.map((time) => <button type="button" key={time} className={`time-chip${selectedTime === time ? ' active' : ''}`} aria-pressed={selectedTime === time} onClick={() => { setSelectedTime(time); setMessage('') }}>{time}</button>)}</div></div>
             {selectedTime && <div className="availability-callout"><Check size={15} /> Horario de ejemplo. La disponibilidad real debe confirmarla el restaurante.</div>}
-            <label className="contact-field">Tu nombre<input autoComplete="name" {...register('name')} placeholder="Nombre y apellido" />{errors.name && <span className="field-error">{errors.name.message}</span>}</label>
-            <label className="contact-field">Correo electrónico<input type="email" autoComplete="email" {...register('email')} placeholder="tu@correo.com" />{errors.email && <span className="field-error">{errors.email.message}</span>}</label>
-            <button className="button button-primary booking-submit" type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Enviando solicitud…' : 'Solicitar reserva'} <ArrowRight size={16} /></button>
+            {isDemo ? <>
+              <label className="contact-field">Tu nombre<input autoComplete="name" {...register('name')} placeholder="Nombre y apellido" />{errors.name && <span className="field-error">{errors.name.message}</span>}</label>
+              <label className="contact-field">Correo electrónico<input type="email" autoComplete="email" {...register('email')} placeholder="tu@correo.com" />{errors.email && <span className="field-error">{errors.email.message}</span>}</label>
+            </> : session?.role === 'customer' ? (
+              <p className="booking-account">Solicitud a nombre de <strong>{session.name}</strong> · {session.email}</p>
+            ) : (
+              <div className="review-login-prompt">
+                <strong>Inicia sesión como cliente para solicitar una reserva.</strong>
+                <Link className="button button-outline" to="/login" state={{ from: location.pathname }}>Login o crear cuenta <ArrowRight size={14} /></Link>
+              </div>
+            )}
+            {(isDemo || session?.role === 'customer') && <button className="button button-primary booking-submit" type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Enviando solicitud…' : 'Solicitar reserva'} <ArrowRight size={16} /></button>}
             {message && <p className={`booking-message${mutation.isError ? ' error' : ''}`} role="status">{message}</p>}
-            <small className="booking-footnote">Modo demostración · No se envía ninguna reserva real.</small>
+            <small className="booking-footnote">{isDemo ? 'Modo demostración · No se envía ninguna reserva real.' : 'La solicitud queda pendiente hasta que el restaurante confirme la disponibilidad.'}</small>
           </form>
           )}
         </aside>

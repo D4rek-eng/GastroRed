@@ -88,7 +88,9 @@ export function OwnerPortalPage() {
         <span className="eyebrow">PORTAL PARA RESTAURANTES</span>
         <h1>Tu restaurante,<br /><em>a tu manera.</em></h1>
         <p>Actualiza horarios, turnos disponibles y condiciones de reserva que se muestran en tu ficha.</p>
-        <span className="owner-demo-note">Panel demo · Los cambios se guardan en este navegador. En producción, el backend valida la cuenta y los restaurantes autorizados.</span>
+        <span className="owner-demo-note">{import.meta.env.VITE_DEMO_MODE !== 'false'
+          ? 'Panel demo · Los cambios se guardan en este navegador.'
+          : `Cuenta ${session?.domain ?? session?.email ?? ''} · Plan Restaurante ${session?.planStatus === 'active' ? 'activo' : 'pendiente de pago'}.`}</span>
       </section>
 
       <section className="owner-editor">
@@ -98,7 +100,9 @@ export function OwnerPortalPage() {
         </div>
         {isLoading && <p className="reviews-state">Cargando restaurantes…</p>}
         {isError && <p className="reviews-state reviews-error" role="alert">No se pudieron cargar los restaurantes. Recarga la página para intentar de nuevo.</p>}
-        {!isLoading && !isError && restaurants.length === 0 && <p className="reviews-state">No hay restaurantes para administrar.</p>}
+        {!isLoading && !isError && restaurants.length === 0 && <p className="reviews-state">{import.meta.env.VITE_DEMO_MODE !== 'false'
+          ? 'No hay restaurantes para administrar.'
+          : 'Tu cuenta de restaurante está activa. La ficha de tu local debe vincularse a la guía antes de editar horarios o reservas.'}</p>}
         {!isLoading && !isError && restaurant && editorValues && (
           <form className="owner-form" onSubmit={saveSettings}>
             <label className="contact-field">Restaurante

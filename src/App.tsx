@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { RequireOwnerAuth } from './components/RequireOwnerAuth'
 import { SiteLayout } from './components/SiteLayout'
 import { OwnerAuthProvider } from './features/auth/OwnerAuthProvider'
 import { LocationProvider } from './features/location/LocationProvider'
 import { ComparePage } from './pages/ComparePage'
+import { AccountPage } from './pages/AccountPage'
 import { HomePage } from './pages/HomePage'
 import { InfoPage } from './pages/InfoPage'
+import { LoginPage } from './pages/LoginPage'
 import { MarketingLandingPage } from './pages/MarketingLandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OwnerLoginPage } from './pages/OwnerLoginPage'
@@ -41,9 +43,9 @@ export default function App() {
                 <Route path="reservas" element={<ReservationsPage />} />
                 <Route path="favoritos" element={<SavedPage />} />
                 <Route path="creditos" element={<PhotoCreditsPage />} />
-                <Route path="login" element={<InfoPage />} />
-                <Route path="registro" element={<InfoPage />} />
-                <Route path="perfil" element={<InfoPage />} />
+                <Route path="login" element={<LoginPage />} />
+                <Route path="registro" element={<Navigate to="/login?mode=register" replace />} />
+                <Route path="perfil" element={<AccountPage />} />
                 <Route path="propietario/login" element={<OwnerLoginPage />} />
                 <Route path="propietario" element={<RequireOwnerAuth><OwnerPortalPage /></RequireOwnerAuth>} />
                 <Route path="propietario/restaurantes" element={<InfoPage />} />

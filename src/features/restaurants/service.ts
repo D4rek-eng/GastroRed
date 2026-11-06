@@ -2,6 +2,7 @@ import { apiRequest } from '../../lib/api/client'
 import type { Reservation, ReservationInput, Restaurant, RestaurantFilters, RestaurantReview } from '../../types'
 import { restaurantReviews, restaurants } from './data'
 import { getStoredNearbyPlace } from './nearby'
+import { publicAsset } from '../../lib/publicAsset'
 
 const demoMode = import.meta.env.VITE_DEMO_MODE !== 'false'
 const ownerSettingsStorageKey = 'mesa-owner-settings'
@@ -76,24 +77,15 @@ export function filterRestaurants(
 
 export const restaurantService = {
   async list(filters: RestaurantFilters, signal?: AbortSignal): Promise<Restaurant[]> {
-    if (demoMode) {
-      await Promise.resolve()
-      if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
-      return filterRestaurants(restaurants.map(withDemoSettings), filters)
-    }
-    const params = new URLSearchParams({
-      q: filters.query,
-      cuisine: filters.cuisine,
-      maxPrice: String(filters.maxPrice),
-      minRating: String(filters.minRating),
-      sort: filters.sort,
-    })
-    return apiRequest<Restaurant[]>(`/api/v1/restaurants?${params}`, { signal })
+    await Promise.resolve()
+    if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
+    return filterRestaurants(restaurants.map((restaurant) => demoMode ? withDemoSettings(restaurant) : restaurant), filters)
   },
 
   async listOwned(restaurantIds: string[], signal?: AbortSignal): Promise<Restaurant[]> {
     if (!demoMode) {
-      return apiRequest<Restaurant[]>('/api/v1/owner/restaurants', { signal })
+      const ownedIds = await apiRequest<string[]>('/api/v1/owner/restaurants', { signal })
+      return restaurants.filter((restaurant) => ownedIds.includes(restaurant.id))
     }
     if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
     return restaurants
@@ -102,14 +94,11 @@ export const restaurantService = {
   },
 
   async getById(id: string, signal?: AbortSignal): Promise<Restaurant> {
-    if (demoMode) {
-      await Promise.resolve()
-      if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
-      const restaurant = findRestaurantById(id)
-      if (!restaurant) throw new Error('No encontramos ese restaurante.')
-      return restaurant.source === 'osm' ? restaurant : withDemoSettings(restaurant)
-    }
-    return apiRequest<Restaurant>(`/api/v1/restaurants/${encodeURIComponent(id)}`, { signal })
+    await Promise.resolve()
+    if (signal?.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
+    const restaurant = findRestaurantById(id)
+    if (!restaurant) throw new Error('No encontramos ese restaurante.')
+    return demoMode && restaurant.source !== 'osm' ? withDemoSettings(restaurant) : restaurant
   },
 
   async listReviews(id: string, signal?: AbortSignal): Promise<RestaurantReview[]> {
@@ -139,9 +128,10 @@ export const restaurantService = {
     }
 
     if (!demoMode) {
+      const restaurant = findRestaurantById(input.restaurantId)
       return apiRequest<RestaurantReview>(
         `/api/v1/restaurants/${encodeURIComponent(input.restaurantId)}/reviews`,
-        { method: 'POST', body: JSON.stringify({ ...input, author, comment }) },
+        { method: 'POST', body: JSON.stringify({ ...input, author, comment, restaurantName: restaurant?.name }) },
       )
     }
     if (!restaurants.some((restaurant) => restaurant.id === input.restaurantId)) {
@@ -167,10 +157,13 @@ export const restaurantService = {
     settings: RestaurantOwnerSettings,
   ): Promise<Restaurant> {
     if (!demoMode) {
-      return apiRequest<Restaurant>(`/api/v1/owner/restaurants/${encodeURIComponent(id)}`, {
+      const savedSettings = await apiRequest<RestaurantOwnerSettings>(`/api/v1/owner/restaurants/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         body: JSON.stringify(settings),
       })
+      const restaurant = restaurants.find((item) => item.id === id)
+      if (!restaurant) throw new Error('No encontramos ese restaurante.')
+      return { ...restaurant, ...savedSettings }
     }
     const restaurant = restaurants.find((item) => item.id === id)
     if (!restaurant) throw new Error('No encontramos ese restaurante.')
@@ -199,5 +192,18 @@ export const restaurantService = {
       restaurantName: restaurant.name,
       restaurantImage: restaurant.image,
     }
+  },
+
+  async listReservations(signal?: AbortSignal): Promise<Reservation[]> {
+    if (demoMode) return []
+    const reservations = await apiRequest<Reservation[]>('/api/v1/reservations', { signal })
+    return reservations.map((reservation) => {
+      const restaurant = findRestaurantById(reservation.restaurantId)
+      return {
+        ...reservation,
+        restaurantName: restaurant?.name ?? reservation.restaurantName,
+        restaurantImage: restaurant?.image ?? publicAsset(reservation.restaurantImage),
+      }
+    })
   },
 }

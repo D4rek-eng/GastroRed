@@ -1,9 +1,10 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { ArrowRight, Heart, MapPin, Menu, Store, Utensils, X } from 'lucide-react'
+import { ArrowRight, Heart, LogIn, MapPin, Menu, Store, Utensils, UserRound, X } from 'lucide-react'
 import { getMillisecondsUntilThemeChange, getScheduledTheme } from '../lib/theme'
 import { formatAccuracy } from '../features/location/location'
 import { useUserLocation } from '../features/location/useUserLocation'
+import { useOwnerAuth } from '../features/auth/useOwnerAuth'
 import { LocationPermissionPrompt } from './LocationPermissionPrompt'
 
 const links = [
@@ -14,9 +15,12 @@ const links = [
 ]
 
 export function SiteLayout() {
-  const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const [openPath, setOpenPath] = useState<string | null>(null)
+  const menuOpen = openPath === location.pathname
   const userLocation = useUserLocation()
+  const { session } = useOwnerAuth()
+  const closeMenu = () => setOpenPath(null)
 
   useEffect(() => {
     let timer: number
@@ -46,7 +50,7 @@ export function SiteLayout() {
     <>
       <header className="site-header">
         <div className="header-inner">
-          <Link className="brand" to="/inicio" aria-label="GastroRed, inicio" onClick={() => setMenuOpen(false)}>
+          <Link className="brand" to="/inicio" aria-label="GastroRed, inicio" onClick={closeMenu}>
             <span className="brand-mark"><Utensils size={17} /></span>
             <span>GastroRed<small>BUENOS MOMENTOS, BUENA MESA</small></span>
           </Link>
@@ -67,17 +71,27 @@ export function SiteLayout() {
           <span className="visually-hidden" role="status" aria-live="polite">
             {userLocation.error || (userLocation.location ? `Ubicación actualizada: ${userLocation.location.label}` : '')}
           </span>
-          <button className="mobile-menu-button icon-button" onClick={() => setMenuOpen((open) => !open)} aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuOpen}>
+          <button className="mobile-menu-button icon-button" type="button" onClick={() => setOpenPath(menuOpen ? null : location.pathname)} aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuOpen} aria-controls="main-navigation">
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <nav className={`main-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Navegación principal">
+          <nav className={`main-nav ${menuOpen ? 'is-open' : ''}`} id="main-navigation" aria-label="Navegación principal">
             {links.map((link) => (
-              <NavLink key={link.to} to={link.to} onClick={() => setMenuOpen(false)} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              <NavLink key={link.to} to={link.to} onClick={closeMenu} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
                 {link.label}
               </NavLink>
             ))}
-            <Link className="owner-nav-link" to="/propietario/login" onClick={() => setMenuOpen(false)}><Store size={14} /> Login restaurantes</Link>
-            <Link className="button button-primary nav-cta" to="/restaurantes" onClick={() => setMenuOpen(false)}>Reserva tu mesa <ArrowRight size={15} /></Link>
+            <Link
+              className="owner-nav-link"
+              to={session ? (session.role === 'restaurant' || session.restaurantIds.length > 0 ? '/propietario' : '/perfil') : '/login'}
+              onClick={closeMenu}
+            >
+              {session?.role === 'restaurant' || (session && session.restaurantIds.length > 0)
+                ? <><Store size={14} /> Portal restaurantes</>
+                : session
+                  ? <><UserRound size={14} /> Mi cuenta</>
+                  : <><LogIn size={14} /> Login</>}
+            </Link>
+            <Link className="button button-primary nav-cta" to="/restaurantes" onClick={closeMenu}>Reserva tu mesa <ArrowRight size={15} /></Link>
           </nav>
         </div>
       </header>
@@ -87,7 +101,7 @@ export function SiteLayout() {
         <div className="footer-grid">
           <div><Link className="brand footer-brand" to="/inicio"><span className="brand-mark"><Utensils size={16} /></span><span>GastroRed</span></Link><p>Descubre restaurantes que se sienten como tu lugar favorito.</p></div>
           <div><strong>Descubre</strong><Link to="/restaurantes">Restaurantes</Link><Link to="/comparador">Comparador</Link><Link to="/mapa">Explorar el mapa</Link></div>
-          <div><strong>Tu cuenta</strong><Link to="/reservas">Mis reservas</Link><Link to="/favoritos">Mis favoritos</Link><Link to="/perfil">Mi perfil</Link></div>
+          <div><strong>Tu cuenta</strong><Link to="/reservas">Mis reservas</Link><Link to="/favoritos">Mis favoritos</Link><Link to={session ? '/perfil' : '/login'}>{session ? 'Mi cuenta' : 'Login'}</Link></div>
           <div className="footer-note"><Heart size={16} /> Hecho para disfrutar mejor {userLocation.location?.region ?? 'el Perú'}.</div>
         </div>
         <div className="footer-bottom"><span>© 2026 GastroRed</span><Link to="/creditos">Créditos de las fotografías</Link><span>Una guía independiente de restaurantes</span></div>

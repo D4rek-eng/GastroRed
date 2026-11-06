@@ -31,8 +31,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 img { max-width: 100%; }
 ::selection { background: #edd7c9; color: var(--ink); }
 
-.site-header { height: 74px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); }
-.header-inner { max-width: 1240px; height: 100%; margin: auto; padding: 0 38px; display: flex; align-items: center; gap: 38px; }
+.site-header { height: 74px; background: rgba(255,255,255,.97); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); box-shadow: 0 5px 18px rgba(40,31,20,.035); }
+.header-inner { max-width: 1320px; height: 100%; margin: auto; padding: 0 38px; display: flex; align-items: center; gap: clamp(18px, 2.4vw, 34px); }
 .brand { display: inline-flex; align-items: center; gap: 9px; font: 600 23px/.95 var(--serif); white-space: nowrap; }
 .brand i { font-weight: 400; color: var(--rust); }
 .brand small { display: block; margin-top: 4px; font: 600 7px/1 var(--sans); letter-spacing: 1.25px; color: #8c867f; }
@@ -42,7 +42,7 @@ img { max-width: 100%; }
 .city-picker:disabled { cursor: wait; opacity: .7; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .chevron { color: #9a948d; margin-left: 5px; }
-.main-nav { display: flex; align-items: center; gap: 30px; margin-left: auto; }
+.main-nav { display: flex; align-items: center; gap: clamp(18px, 2.1vw, 29px); margin-left: auto; }
 .nav-link { font-size: 12px; color: #57514b; transition: color .2s; }
 .nav-link:hover, .nav-link.active { color: var(--rust); }
 .owner-nav-link { display: inline-flex; align-items: center; gap: 5px; color: #706961; font-size: 10px; white-space: nowrap; }
@@ -514,13 +514,42 @@ img { max-width: 100%; }
 .owner-login-card .owner-demo-note { display: grid; gap: 3px; margin-top: 17px; }
 .owner-login-card .owner-demo-note strong { margin-bottom: 3px; }
 .owner-login-card .owner-demo-note small { margin-top: 5px; }
+.account-login-card { width: min(490px, 100%); }
+.account-role-switch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: 22px; padding: 4px; border-radius: 999px; background: #f2efeb; }
+.account-role-switch button, .account-mode-switch button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; border: 0; border-radius: 999px; background: transparent; color: #6b645c; font-size: 11px; font-weight: 600; cursor: pointer; transition: color .18s, background .18s, box-shadow .18s; }
+.account-role-switch button.active, .account-mode-switch button.active { background: var(--paper); color: var(--rust); box-shadow: 0 2px 8px rgba(40,31,20,.08); }
+.account-mode-switch { display: flex; gap: 18px; margin-top: 18px; border-bottom: 1px solid var(--line); }
+.account-mode-switch button { min-height: 36px; padding: 0 2px; border-radius: 0; box-shadow: none !important; }
+.account-mode-switch button.active { border-bottom: 2px solid var(--rust); }
+.account-login-card .owner-form { gap: 12px; }
+.account-login-card .owner-form .contact-field { gap: 5px; }
+.account-login-card .owner-form input { min-height: 42px; border-radius: 6px; font-size: 12px; }
+.account-login-card .owner-form .button { min-height: 44px; margin-top: 4px; border-radius: 999px; }
+.account-input-icon { position: relative; display: flex; align-items: center; }
+.account-input-icon svg { position: absolute; left: 12px; color: #8a8178; }
+.account-input-icon input { padding-left: 36px !important; }
+.account-plan-choice { display: grid; gap: 8px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.account-plan-choice legend { padding: 0 5px; color: #6f675f; font-size: 10px; font-weight: 600; }
+.account-plan-choice label { display: flex; align-items: flex-start; gap: 9px; padding: 8px; border-radius: 7px; background: #fbfaf8; cursor: pointer; }
+.account-plan-choice input { width: 15px; min-height: 15px !important; margin: 2px 0 0; accent-color: var(--rust); }
+.account-plan-choice label span { display: grid; gap: 2px; }
+.account-plan-choice label strong { color: var(--ink); font-size: 11px; }
+.account-plan-choice label small, .verification-copy, .account-demo-notice { color: #766f67; font-size: 10px; }
+.account-demo-notice { margin: 14px 0 0; line-height: 1.65; }
+.verification-copy { margin: 0; line-height: 1.6; }
+.development-code { margin: 0; color: #476449; font-size: 10px; }
+.account-plan-status { display: grid; gap: 4px; margin: 22px 0 15px; padding: 14px 0; border-block: 1px solid var(--line); }
+.account-plan-status strong { font: 500 22px var(--serif); }
+.account-plan-status span { color: #766f67; font-size: 10px; }
+.account-checkout { width: 100%; border-radius: 999px; }
+.account-signout { display: block; margin: 14px auto 0; border: 0; background: transparent; color: #766f67; font-size: 10px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 
 @media (max-width: 1000px) {
   .site-header { height: 64px; }
   .header-inner { padding-inline: 25px; gap: 12px; }
   .city-picker { margin-left: auto; border-left: 0; padding-left: 0; }
   .mobile-menu-button { display: grid; margin-left: 2px; }
-  .main-nav { display: none; position: absolute; top: 63px; left: 0; right: 0; padding: 13px 25px 18px; background: var(--paper); border-bottom: 1px solid var(--line); box-shadow: var(--shadow); align-items: stretch; gap: 0; margin-left: 0; }
+  .main-nav { display: none; position: absolute; top: 63px; left: 14px; right: 14px; padding: 13px 18px 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 0 0 18px 18px; box-shadow: 0 14px 28px rgba(40,31,20,.12); align-items: stretch; gap: 0; margin-left: 0; }
   .main-nav.is-open { display: flex; flex-direction: column; }
   .nav-link { font-size: 13px; padding: 11px 2px; border-bottom: 1px solid var(--line); }
   .owner-nav-link { padding: 11px 2px; border-bottom: 1px solid var(--line); font-size: 13px; }
@@ -546,7 +575,7 @@ img { max-width: 100%; }
   .brand-mark { width: 29px; height: 29px; }
   .city-picker { margin-left: auto; border-left: 0; padding-left: 0; font-size: 10px; }
   .mobile-menu-button { display: grid; margin-left: 2px; }
-  .main-nav { padding-inline: 19px; }
+  .main-nav { padding-inline: 16px; }
   .location-prompt { right: 14px; bottom: 14px; }
   .nav-cta { margin-top: 12px; }
   .page-container, .hero-copy { width: calc(100% - 38px); }
@@ -923,6 +952,18 @@ img { max-width: 100%; }
 :root[data-theme="dark"] .review-form,
 :root[data-theme="dark"] .owner-editor { background: #24221f; border-color: #393632; }
 :root[data-theme="dark"] .owner-login-card { background: #24221f; border-color: #393632; }
+:root[data-theme="dark"] .account-role-switch,
+:root[data-theme="dark"] .account-plan-choice label { background: #302d29; }
+:root[data-theme="dark"] .account-role-switch button { color: #b3aaa0; }
+:root[data-theme="dark"] .account-role-switch button.active,
+:root[data-theme="dark"] .account-mode-switch button.active { background: #392b26; color: #e8c597; }
+:root[data-theme="dark"] .account-plan-choice { border-color: #504a43; }
+:root[data-theme="dark"] .account-plan-choice label strong,
+:root[data-theme="dark"] .account-plan-status strong { color: #eee9e2; }
+:root[data-theme="dark"] .account-plan-choice label small,
+:root[data-theme="dark"] .verification-copy,
+:root[data-theme="dark"] .account-plan-status span,
+:root[data-theme="dark"] .account-demo-notice { color: #b3aaa0; }
 :root[data-theme="dark"] .review-form .contact-field input,
 :root[data-theme="dark"] .review-form .contact-field textarea,
 :root[data-theme="dark"] .owner-form input,

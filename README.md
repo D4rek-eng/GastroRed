@@ -14,14 +14,30 @@ npm run dev
 
 ## Configuración
 
-Copia `.env.example` como `.env.local`.
+Copia `.env.example` como `.env.local` para el frontend y `.env.server.example` como `.env.server` para la API. El modo demo sigue activo por defecto. El archivo `.env.server` contiene secretos y está excluido de Git.
 
 | Variable | Descripción |
 | --- | --- |
 | `VITE_DEMO_MODE` | `true` activa datos y acciones de demostración. El valor por defecto también es demo. |
-| `VITE_API_BASE_URL` | URL base del backend que implementa los endpoints `/api/v1`. |
+| `VITE_API_BASE_URL` | URL base de la API. Vacía usa el mismo origen; Vite reenvía `/api` a `localhost:3001`. |
 
-Con `VITE_DEMO_MODE=false`, configura `VITE_API_BASE_URL` con una API compatible. Las solicitudes usan cookies (`credentials: include`); la autenticación real y las reglas de autorización deben implementarse y validarse en el backend. La reserva demo se guarda como solicitud pendiente, nunca como confirmada.
+Para habilitar cuentas y persistencia local, instala MySQL 8 y configura `.env.server`:
+
+```sql
+CREATE DATABASE gastrored CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'gastrored'@'localhost' IDENTIFIED BY 'elige-una-clave-local';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES
+  ON gastrored.* TO 'gastrored'@'localhost';
+```
+
+Después ejecuta:
+
+```bash
+npm run db:migrate
+npm run dev:api
+```
+
+En otra terminal, inicia Vite con `npm run dev` y cambia `VITE_DEMO_MODE=false` en `.env.local`. En despliegues, configura HTTPS, una URL pública para `MERCADOPAGO_WEBHOOK_URL`, credenciales de Mercado Pago y un `SMTP_URL` para entregar códigos de verificación. `FRONTEND_ORIGIN` debe ser el origen público exacto del frontend. No copies credenciales reales a archivos versionados.
 
 ## Tema por horario
 
@@ -32,15 +48,18 @@ El tema se ajusta a la hora local del dispositivo: modo claro de 06:00 a 17:59 y
 - Landing informativa en `/` con parallax, planes Free/Pro y acceso al inicio de la app en `/inicio`.
 - Inicio editorial de la app, navegación responsive, búsqueda y rutas principales.
 - Búsqueda por restaurante, distrito, cocina y plato; filtro por cocina, precio y valoración; orden por relevancia, valoración, precio y distancia.
-- Descubrimiento de restaurantes reales a 200 m, 500 m o 1 km con OpenStreetMap; radio ampliable y fichas sin datos inventados.
-- Los radios Free (200 m) y Pro (500 m–1 km, S/ 100 al mes) de la landing son informativos: no hay suscripción, cobro ni restricción de radio por plan implementados.
+- Descubrimiento de restaurantes reales con OpenStreetMap. Free usa 200 m; Pro puede ampliar el radio hasta 1 km cuando la suscripción está activa.
+- Registro e inicio de sesión de clientes con correo personal; registro de restaurantes con dominio único, correo corporativo del mismo dominio y acceso mediante dominio y contraseña.
+- Verificación de correo por código; los códigos solo se devuelven en desarrollo cuando no hay SMTP configurado.
+- Plan cliente Pro a S/ 100/mes y plan Restaurante a S/ 120/mes. Mercado Pago crea suscripciones mensuales; la activación depende de validar el webhook firmado. Se requieren credenciales de despliegue; el repositorio no incluye claves.
+- Reservas pendientes y comentarios de clientes autenticados persistidos en MySQL al desactivar el modo demo. Cada cuenta puede publicar una opinión por restaurante.
 - Guía curada siempre disponible con carta, precios por plato, reseñas y fotografías reales; cada imagen tiene su crédito y los locales sin foto propia muestran un espacio neutro, nunca una imagen referencial.
-- Ficha de restaurante con menú y reseñas de ejemplo, comentarios de usuarios con valoración de 1 a 5 estrellas y filtro por puntuación, mapa de Google centrado en el restaurante, distancia desde la ubicación del usuario con permiso, guardar favoritos en este dispositivo y flujo de solicitud de reserva con validación Zod/React Hook Form.
+- Ficha de restaurante con menú y reseñas de ejemplo, comentarios autenticados de 1 a 5 estrellas, mapa de Google, distancia desde la ubicación del usuario con permiso, favoritos guardados en este dispositivo y solicitud de reserva con validación Zod/React Hook Form.
 - Comparador de hasta cuatro restaurantes, criterios prioritarios, puntuación ponderada explicada, normalizada y probada, con contraste de tema oscuro.
-- Login de restaurantes con correo y contraseña, sesión protegida y portal para editar horarios, turnos y política de reservas; los cambios demo se guardan localmente y actualizan las fichas.
-- Listado local de favoritos y solicitudes demo de reserva en memoria.
+- Portal de restaurantes protegido por sesión y suscripción activa. El dominio y correo corporativos se verifican durante el registro; la ficha pública debe vincularse a una cuenta antes de editarla.
+- En modo demo, comentarios y favoritos viven en el navegador y las reservas solo en memoria; no son compartidos ni reservas reales.
 - Estados de carga, error y ausencia de resultados.
-- Las rutas de mapa, cuenta y administración que dependen de servicios no conectados se identifican como pendientes. El modo demo del portal tiene credenciales de prueba visibles en su login; en producción, sesión, rol y restaurantes autorizados deben verificarse en el backend.
+- La cuenta de restaurante recién creada se registra en la base de datos; la vinculación a una ficha pública de la guía requiere asociar esa ficha. El portal no inventa una ficha cuando aún no está vinculada.
 
 ## Restaurantes cercanos y ubicación
 
@@ -54,18 +73,19 @@ Los datos de OpenStreetMap son abiertos (ODbL) y pueden estar incompletos: no si
 
 Los restaurantes de ejemplo, horarios, reseñas, distancias de referencia y precios son ilustrativos; no reflejan disponibilidad ni servicios confirmados. Las fotografías son reales, se descargan localmente como WebP y provienen de Wikimedia Commons con licencias abiertas; los autores y licencias se listan en `/creditos`. El mapa usa Google Maps Embed en la ficha de cada restaurante. Al pulsar la ubicación en la cabecera, el navegador solicita permiso de geolocalización; las coordenadas se usan para calcular la distancia, mostrar los locales cercanos y obtener el nombre de la localidad. No se guarda la ubicación.
 
-## Contrato REST esperado
+## API y persistencia
 
-El cliente centralizado está en `src/lib/api/client.ts` y el servicio inicial en `src/features/restaurants/service.ts`. Al desactivar demo, se usan:
+La API Node está en `server/`; MySQL se define en `server/migrations/001_initial.sql`. Las operaciones implementadas incluyen:
 
-- `GET /api/v1/restaurants?q=&cuisine=&maxPrice=&minRating=&sort=`
-- `GET /api/v1/restaurants/{id}`
-- `GET /api/v1/restaurants/{id}/reviews`
-- `POST /api/v1/reservations`
+- `POST /api/v1/auth/register`, `POST /api/v1/auth/verify-email`, `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`
+- `POST /api/v1/billing/checkout`, `POST /api/v1/billing/webhook`
+- `GET|POST /api/v1/reservations`
+- `GET|POST /api/v1/restaurants/{id}/reviews`
+- `GET /api/v1/owner/restaurants`, `PATCH /api/v1/owner/restaurants/{id}`
 
-Los tipos actuales son el contrato mínimo de la interfaz, no un contrato backend verificado. La respuesta de reseñas es un arreglo de `{ id, restaurantId, author, date, rating, comment, visit }`. Acordar esquemas, errores, disponibilidad, autorización y cancelación con el backend antes de producción. Quedan pendientes servicios de autenticación, menú, favoritos, comparaciones persistidas y administración.
+Las sesiones usan cookies `HttpOnly`, `SameSite=Lax` y `Secure` en producción; el servidor guarda solo el hash de cada token de sesión. Las contraseñas se derivan con scrypt. La API valida el rol, el estado del plan y la propiedad antes de aceptar cambios del portal. El catálogo editorial permanece en el frontend; las cuentas de restaurante requieren una asociación explícita con una ficha de catálogo para editarla.
 
-Para habilitar las nuevas operaciones en modo real, el backend debe implementar `POST /api/v1/restaurants/{id}/reviews` (validar sesión y valoración de 1 a 5), `POST /api/v1/auth/owner/login`, `GET /api/v1/auth/owner/session`, `POST /api/v1/auth/owner/logout`, `GET /api/v1/owner/restaurants` y `PATCH /api/v1/owner/restaurants/{id}`. La sesión debe viajar en cookie segura `HttpOnly`, `Secure` y `SameSite`; el servidor debe autorizar cada restaurante en las operaciones de lectura y escritura. El login de demostración usa `propietario@mesaysabor.demo` / `MesaDemo2026!` y solo administra Mérito. En demo, los comentarios y cambios del portal se guardan en este navegador y no se comparten con otros usuarios; las credenciales demo no son para producción.
+Las imágenes y fichas de restaurantes seed son ilustrativas. La disponibilidad que aparece al solicitar una reserva tampoco se confirma automáticamente; todas las nuevas solicitudes se guardan como `pending`.
 
 ## Verificación
 
@@ -73,6 +93,7 @@ Para habilitar las nuevas operaciones en modo real, el backend debe implementar 
 npm test
 npm run build
 npm run lint
+npm run check:server
 ```
 
 El diseño es mobile-first y tiene breakpoints para móvil, tablet y escritorio. Antes de producción, verificar overflow y accesibilidad con los navegadores objetivo, y conectar disponibilidad, autenticación y permisos reales.

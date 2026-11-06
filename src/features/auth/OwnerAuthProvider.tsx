@@ -31,13 +31,39 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
     setError('')
   }
 
+  async function signInAccount(role: 'customer' | 'restaurant', identifier: string, password: string) {
+    const nextSession = await ownerAuthService.signInAccount(role, identifier, password)
+    setSession(nextSession)
+    setError('')
+    return nextSession
+  }
+
+  function registerAccount(input: Parameters<typeof ownerAuthService.registerAccount>[0]) {
+    return ownerAuthService.registerAccount(input)
+  }
+
+  async function verifyEmail(email: string, code: string) {
+    const nextSession = await ownerAuthService.verifyEmail(email, code)
+    setSession(nextSession)
+    setError('')
+    return nextSession
+  }
+
+  function resendVerification(email: string) {
+    return ownerAuthService.resendVerification(email)
+  }
+
+  function startCheckout(plan: 'pro' | 'restaurant') {
+    return ownerAuthService.startCheckout(plan)
+  }
+
   async function signOut() {
     await ownerAuthService.signOut()
     setSession(null)
   }
 
   const value = useMemo<OwnerAuthContextValue>(
-    () => ({ session, isLoading, error, signIn, signOut }),
+    () => ({ session, isLoading, error, signIn, signInAccount, registerAccount, verifyEmail, resendVerification, startCheckout, signOut }),
     [session, isLoading, error],
   )
   return <OwnerAuthContext.Provider value={value}>{children}</OwnerAuthContext.Provider>
