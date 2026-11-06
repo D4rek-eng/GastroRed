@@ -243,11 +243,13 @@ export function RestaurantsPage() {
           {!nearbyQuery.isLoading && !nearbyQuery.isError && nearbyPlaces.length === 0 && (
             <div className="state-card">
               <strong>No hay restaurantes registrados a {radiusUsed} m de {placeLabel}.</strong>
-              <p>OpenStreetMap todavía no tiene locales con nombre en este radio. Prueba con un radio mayor o explora la guía completa.</p>
+              <p>{hasProRadius
+                ? 'OpenStreetMap todavía no tiene locales con nombre en este radio. Prueba con un radio mayor o explora la guía completa.'
+                : 'OpenStreetMap todavía no tiene locales con nombre en este radio. Amplía la búsqueda a 500 m o 1 km con GastroRed Pro por S/ 100 al mes.'}</p>
               <div className="state-actions">
                 {NEARBY_RADII.filter((value) => value > radius).map((value) => (
                   <button key={value} className="button button-primary" type="button" onClick={() => updateRadius(value)}>
-                    Ampliar a {value < 1000 ? `${value} m` : `${value / 1000} km`} <ArrowRight size={15} />
+                    {hasProRadius ? 'Ampliar a' : 'Pro ·'} {value < 1000 ? `${value} m` : `${value / 1000} km`} <ArrowRight size={15} />
                   </button>
                 ))}
               </div>
