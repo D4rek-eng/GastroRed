@@ -227,11 +227,20 @@ export function LoginPage() {
           </>
         )}
 
-        {isDemo && role === 'restaurant' && !isRegistering && !verificationEmail && (
+        {isDemo && !isRegistering && !verificationEmail && (
           <div className="owner-demo-note">
             <strong>Acceso de demostración</strong>
-            <span>Dominio: mesaysabor.demo</span>
-            <span>Contraseña: MesaDemo2026!</span>
+            {role === 'customer' ? (
+              <>
+                <span>Correo: cliente@gastrored.demo</span>
+                <span>Contraseña: GastroDemo2026!</span>
+              </>
+            ) : (
+              <>
+                <span>Dominio: mesaysabor.demo</span>
+                <span>Contraseña: MesaDemo2026!</span>
+              </>
+            )}
           </div>
         )}
         {isDemo && isRegistering && <p className="account-demo-notice">El registro real se habilita al configurar la API y MySQL. No guardamos contraseñas en este navegador.</p>}

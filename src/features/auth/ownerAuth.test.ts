@@ -19,11 +19,33 @@ describe('owner authentication demo', () => {
     expect(await ownerAuthService.getSession()).toEqual(session)
   })
 
+  it('authenticates the seeded demo customer and restores the customer session', async () => {
+    const session = await ownerAuthService.signInAccount(
+      'customer',
+      'cliente@gastrored.demo',
+      'GastroDemo2026!',
+    )
+
+    expect(session).toMatchObject({
+      email: 'cliente@gastrored.demo',
+      role: 'customer',
+      plan: 'free',
+      planStatus: 'active',
+      restaurantIds: [],
+    })
+    expect(await ownerAuthService.getSession()).toEqual(session)
+  })
+
   it('rejects invalid credentials and does not create a session', async () => {
     await expect(ownerAuthService.signIn({
       email: 'persona@example.com',
       password: 'incorrecta',
     })).rejects.toThrow('Correo o contraseña incorrectos.')
+    await expect(ownerAuthService.signInAccount(
+      'customer',
+      'cliente@gastrored.demo',
+      'incorrecta',
+    )).rejects.toThrow('Correo o contraseña incorrectos.')
     expect(await ownerAuthService.getSession()).toBeNull()
   })
 

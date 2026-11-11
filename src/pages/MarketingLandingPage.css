@@ -55,12 +55,16 @@
 }
 
 .landing-header.is-collapsed .landing-brand {
-  max-width: 92px;
+  width: 92px;
+  height: 39px;
+  overflow: hidden;
+  align-items: flex-start;
 }
 
 .landing-header.is-collapsed .landing-brand img {
   width: 92px;
-  max-height: 44px;
+  max-height: none;
+  clip-path: inset(0 0 17%);
 }
 
 .landing-nav {
@@ -282,15 +286,41 @@
 
 .landing-streets path {
   fill: none;
-  stroke: #fffdfa;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 12;
 }
 
-.landing-streets path + path {
-  stroke: #ded8ce;
+.landing-streets .map-major-road-edge {
+  stroke: #fffdfa;
+  stroke-width: 27;
+}
+
+.landing-streets .map-major-road {
+  stroke: #e2ddd6;
+  stroke-width: 21;
+}
+
+.landing-streets .map-minor-road-edge {
+  stroke: #fffdfa;
+  stroke-width: 16;
+}
+
+.landing-streets .map-minor-road {
+  stroke: #e6e0d8;
+  stroke-width: 11;
+}
+
+.landing-map-buildings rect {
+  fill: #e2dbd1;
+  stroke: #d3ccc2;
   stroke-width: 1.5;
+}
+
+.landing-map-labels {
+  fill: #8e877d;
+  font: 700 8px/1 var(--sans);
+  letter-spacing: 1px;
+  opacity: .8;
 }
 
 .landing-map-park {

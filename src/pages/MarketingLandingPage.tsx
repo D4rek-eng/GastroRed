@@ -147,7 +147,7 @@ export function MarketingLandingPage() {
         onFocusCapture={() => setNavCollapsed(false)}
       >
         <Link className="landing-brand" to="/inicio" aria-label="GastroRed, entrar a la guía">
-          <img src={publicAsset('/images/gastrored-logo.png')} alt="GastroRed Food Platform" />
+          <img src={publicAsset('/images/gastrored-logo.png')} alt="GastroRed" />
         </Link>
         <button
           className="landing-menu-button"
@@ -188,8 +188,42 @@ export function MarketingLandingPage() {
         <div className="landing-hero-art" aria-label="Vista ilustrativa de la experiencia GastroRed">
           <div className="landing-map" role="img" aria-label="Mapa ilustrativo con un radio cercano de 200 metros">
             <svg className="landing-streets" viewBox="0 0 680 550" aria-hidden="true">
-              <path d="M-30 128 700 20M-25 256 692 336M-20 441 690 389M102-20 224 570M340-18 300 560M530-40 460 570" />
-              <path d="m23 66 92 38-42 62-89-30m426-71 117 26-35 77-122-28m-298 211 116 38-37 75-116-34m320-87 137 31-31 80-133-34" />
+              <path className="map-major-road-edge" d="M-30 128 700 20M-25 256 692 336M-20 441 690 389M102-20 224 570M340-18 300 560M530-40 460 570" />
+              <path className="map-major-road" d="M-30 128 700 20M-25 256 692 336M-20 441 690 389M102-20 224 570M340-18 300 560M530-40 460 570" />
+              <path className="map-minor-road-edge" d="m23 66 92 38-42 62-89-30m426-71 117 26-35 77-122-28m-298 211 116 38-37 75-116-34m320-87 137 31-31 80-133-34" />
+              <path className="map-minor-road" d="m23 66 92 38-42 62-89-30m426-71 117 26-35 77-122-28m-298 211 116 38-37 75-116-34m320-87 137 31-31 80-133-34" />
+              <g className="landing-map-buildings">
+                <rect x="34" y="185" width="38" height="27" rx="3" />
+                <rect x="79" y="179" width="47" height="31" rx="3" />
+                <rect x="47" y="220" width="34" height="23" rx="3" />
+                <rect x="89" y="218" width="39" height="28" rx="3" />
+                <rect x="151" y="52" width="41" height="27" rx="3" />
+                <rect x="198" y="46" width="50" height="31" rx="3" />
+                <rect x="160" y="87" width="35" height="24" rx="3" />
+                <rect x="204" y="84" width="39" height="25" rx="3" />
+                <rect x="365" y="51" width="46" height="28" rx="3" />
+                <rect x="417" y="44" width="39" height="30" rx="3" />
+                <rect x="373" y="85" width="36" height="24" rx="3" />
+                <rect x="417" y="82" width="44" height="28" rx="3" />
+                <rect x="72" y="333" width="40" height="27" rx="3" />
+                <rect x="119" y="338" width="47" height="29" rx="3" />
+                <rect x="80" y="373" width="35" height="22" rx="3" />
+                <rect x="123" y="378" width="42" height="25" rx="3" />
+                <rect x="506" y="234" width="43" height="29" rx="3" />
+                <rect x="555" y="239" width="48" height="27" rx="3" />
+                <rect x="514" y="275" width="34" height="25" rx="3" />
+                <rect x="555" y="278" width="43" height="28" rx="3" />
+                <rect x="337" y="422" width="41" height="27" rx="3" />
+                <rect x="384" y="419" width="49" height="31" rx="3" />
+                <rect x="342" y="460" width="37" height="24" rx="3" />
+                <rect x="389" y="459" width="43" height="26" rx="3" />
+              </g>
+              <g className="landing-map-labels">
+                <text x="74" y="174" transform="rotate(-8 74 174)">CAFÉ</text>
+                <text x="190" y="126" transform="rotate(-8 190 126)">AV. PRINCIPAL</text>
+                <text x="533" y="326" transform="rotate(7 533 326)">RESTAURANTES</text>
+                <text x="385" y="405" transform="rotate(-7 385 405)">MERCADO</text>
+              </g>
             </svg>
             <div className="landing-map-park" />
             <div className="landing-map-radius" data-parallax="0.07" />

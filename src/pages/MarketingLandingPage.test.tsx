@@ -14,8 +14,12 @@ describe('marketing landing page', () => {
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
     const { container } = render(<MemoryRouter><MarketingLandingPage /></MemoryRouter>)
 
-    expect(screen.getAllByRole('img', { name: 'GastroRed Food Platform' })).toHaveLength(2)
+    expect(screen.getByRole('img', { name: 'GastroRed' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'GastroRed Food Platform' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Tu próximo lugar favorito está cerca' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Mapa ilustrativo con un radio cercano de 200 metros' })).toBeInTheDocument()
+    expect(container.querySelectorAll('.landing-map-buildings rect')).toHaveLength(24)
+    expect(container.querySelector('.landing-map-labels')).toHaveTextContent('AV. PRINCIPAL')
     expect(screen.getByRole('link', { name: /descubrir restaurantes/i })).toHaveAttribute('href', '/restaurantes')
     const navigation = screen.getByRole('navigation', { name: 'Navegación de GastroRed' })
     expect(within(navigation).getByRole('link', { name: /entrar a gastrored/i })).toHaveAttribute('href', '/inicio')
@@ -45,7 +49,7 @@ describe('marketing landing page', () => {
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 160 })
     fireEvent.scroll(window)
     expect(header).toHaveClass('is-collapsed')
-    expect(within(header).getByRole('img', { name: 'GastroRed Food Platform' })).toBeInTheDocument()
+    expect(within(header).getByRole('img', { name: 'GastroRed' })).toBeInTheDocument()
     expect(within(header).getByRole('navigation', { name: 'Navegación de GastroRed' })).toHaveAttribute('inert')
 
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 })
