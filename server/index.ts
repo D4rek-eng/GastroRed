@@ -4,8 +4,8 @@ import { getPool } from './db.js'
 
 async function start() {
   await getPool().query('SELECT 1 FROM users LIMIT 0')
-  const server = app.listen(config.API_PORT, () => {
-    console.info(`GastroRed API listening on port ${config.API_PORT}`)
+  const server = app.listen(config.API_PORT, config.API_HOST, () => {
+    console.info(`GastroRed API listening on ${config.API_HOST}:${config.API_PORT}`)
   })
 
   const shutdown = () => {
