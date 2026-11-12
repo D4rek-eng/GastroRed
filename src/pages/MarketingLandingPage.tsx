@@ -299,7 +299,6 @@ export function MarketingLandingPage() {
           <span className="landing-eyebrow"><span /> MÁS CERCA O MÁS LEJOS</span>
           <h2 id="plans-title">Tu búsqueda,<br />a tu <em>medida.</em></h2>
           <p>Empieza explorando a tu alrededor. Estamos preparando una opción para ampliar el radio y descubrir más lugares.</p>
-          <Link className="landing-button landing-button-light" to="/restaurantes">Explorar restaurantes <ArrowRight size={16} /></Link>
         </div>
         <div className="landing-plans-visual" aria-label="Comparación ilustrativa de radios de búsqueda">
           <div className="plan-orbit orbit-outer" data-parallax="0.045"><span>1 km</span></div>

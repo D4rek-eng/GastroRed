@@ -22,10 +22,6 @@ export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  if (!apiBaseUrl) {
-    throw new ApiError('La API no está configurada. Activa el modo demo o configura VITE_API_BASE_URL.', 0)
-  }
-
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...options,
     headers: {

@@ -21,6 +21,8 @@ describe('marketing landing page', () => {
     expect(container.querySelectorAll('.landing-map-buildings rect')).toHaveLength(24)
     expect(container.querySelector('.landing-map-labels')).toHaveTextContent('AV. PRINCIPAL')
     expect(screen.getByRole('link', { name: /descubrir restaurantes/i })).toHaveAttribute('href', '/restaurantes')
+    expect(screen.getAllByRole('link', { name: 'Buscar restaurantes' })).toHaveLength(1)
+    expect(screen.queryByRole('link', { name: 'Explorar restaurantes' })).not.toBeInTheDocument()
     const navigation = screen.getByRole('navigation', { name: 'Navegación de GastroRed' })
     expect(within(navigation).getByRole('link', { name: /entrar a gastrored/i })).toHaveAttribute('href', '/inicio')
     expect(screen.getByText(/200 m a la redonda/)).toBeInTheDocument()
