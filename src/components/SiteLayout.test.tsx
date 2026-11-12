@@ -69,4 +69,35 @@ describe('application navigation', () => {
     expect(await screen.findByRole('link', { name: 'Portal restaurantes' })).toBeInTheDocument()
     expect(navigation.querySelector('.nav-cta')).not.toBeInTheDocument()
   })
+
+  it('shows restaurant administration links instead of customer navigation in the owner portal', () => {
+    localStorage.setItem('mesa-demo-owner-session', JSON.stringify({
+      email: 'propietario@mesaysabor.demo',
+      role: 'restaurant',
+      restaurantIds: ['central'],
+    }))
+
+    render(
+      <MemoryRouter initialEntries={['/propietario/menu']}>
+        <OwnerAuthProvider>
+          <LocationProvider>
+            <Routes>
+              <Route element={<SiteLayout />}>
+                <Route path="/propietario/menu" element={<p>Gestión del menú</p>} />
+              </Route>
+            </Routes>
+          </LocationProvider>
+        </OwnerAuthProvider>
+      </MemoryRouter>,
+    )
+
+    const navigation = screen.getByRole('navigation', { name: 'Navegación de administración' })
+    expect(navigation.querySelector('a[href="/propietario"]')).toHaveTextContent('Panel')
+    expect(navigation.querySelector('a[href="/propietario/restaurantes"]')).toHaveTextContent('Restaurantes')
+    expect(navigation.querySelector('a[href="/propietario/menu"]')).toHaveAttribute('aria-current', 'page')
+    expect(navigation.querySelector('a[href="/propietario/reservas"]')).toHaveTextContent('Reservas')
+    expect(navigation.querySelector('a[href="/restaurantes"], a[href="/comparador"], a[href="/favoritos"]')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Detectar mi ubicación' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
+  })
 })

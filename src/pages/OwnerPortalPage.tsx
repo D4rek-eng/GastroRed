@@ -120,7 +120,7 @@ export function OwnerPortalPage() {
 
   return (
     <div className="page-container owner-page">
-      <div className="breadcrumb"><Link to="/inicio">Inicio</Link><span>/</span><span>Panel de administración</span></div>
+      <div className="breadcrumb"><span>Panel de administración</span></div>
       <section className="owner-intro">
         <div className="owner-intro-main">
           <span className="owner-icon"><Store size={21} /></span>
@@ -301,7 +301,7 @@ export function OwnerPortalPage() {
             {message && <p className={`owner-message${reservationMutation.isError ? ' error' : ''}`} role={reservationMutation.isError ? 'alert' : 'status'}>{message}</p>}
           </>
         )}
-        <Link className="text-link owner-view-link" to="/restaurantes">Ver fichas de restaurantes <ArrowRight size={15} /></Link>
+        <Link className="text-link owner-view-link" to="/propietario/restaurantes">Gestionar mis restaurantes <ArrowRight size={15} /></Link>
         </section>
       </div>
     </div>
